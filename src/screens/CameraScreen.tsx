@@ -15,7 +15,7 @@ export default function CameraScreen() {
   const camera = useCamera();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
-  const [savedToast, setSavedToast] = useState(false);
+  const [savedToast, setSavedToast] = useState('');
   const [flash, setFlash] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,10 +23,11 @@ export default function CameraScreen() {
   // Brief confirmation after returning from a save, then back to a clean
   // viewfinder — the toast must not survive a reload or a back navigation.
   useEffect(() => {
-    if ((location.state as { saved?: boolean } | null)?.saved !== true) return;
-    setSavedToast(true);
+    const state = location.state as { saved?: boolean; toast?: string } | null;
+    if (state?.saved !== true) return;
+    setSavedToast(state.toast || '保存しました');
     navigate('/', { replace: true, state: null });
-    const timer = window.setTimeout(() => setSavedToast(false), 2000);
+    const timer = window.setTimeout(() => setSavedToast(''), 2400);
     return () => window.clearTimeout(timer);
   }, [location.state, navigate]);
 
@@ -142,7 +143,7 @@ export default function CameraScreen() {
 
         {savedToast ? (
           <div className="toast" role="status">
-            保存しました
+            {savedToast}
           </div>
         ) : null}
 

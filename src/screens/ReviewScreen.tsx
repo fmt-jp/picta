@@ -6,6 +6,8 @@ import TagPicker from '../ui/TagPicker';
 import { useSpeechInput } from '../capture/useSpeech';
 import { clearPendingCapture, getPendingCapture } from '../capture/pendingCapture';
 import { createRecord } from '../db/records';
+import { savePhotoToLibrary } from '../platform/photoLibrary';
+import { loadSettings } from '../settings';
 
 /**
  * 撮影 → 一言 → 保存.
@@ -46,7 +48,7 @@ export default function ReviewScreen() {
     setError('');
     speech.stop();
     try {
-      await createRecord({
+      const record = await createRecord({
         photo: {
           blob: capture.blob,
           mimeType: capture.mimeType,
@@ -57,8 +59,20 @@ export default function ReviewScreen() {
         tags,
         capturedAt: capture.capturedAt,
       });
+
+      // The device copy is a bonus, never a reason to lose the record: the
+      // record is already stored by the time this runs, and a failure here is
+      // reported but not thrown.
+      let toast = '保存しました';
+      if (loadSettings().savePhotosToLibrary) {
+        const result = await savePhotoToLibrary(capture.blob, record.photoFileName);
+        if (result.status === 'denied' || result.status === 'failed') {
+          toast = '保存しました（端末への保存は失敗）';
+        }
+      }
+
       clearPendingCapture();
-      navigate('/', { replace: true, state: { saved: true } });
+      navigate('/', { replace: true, state: { saved: true, toast } });
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存に失敗しました');
       setSaving(false);
