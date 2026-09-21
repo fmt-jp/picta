@@ -20,12 +20,15 @@ const IOS_KEYS = {
   NSMicrophoneUsageDescription: 'メモを音声で入力するためにマイクを使用します。',
   NSSpeechRecognitionUsageDescription: '音声をテキストに変換してメモに入力します。',
   NSPhotoLibraryAddUsageDescription: '撮影した写真を端末の写真アプリにも保存します。',
+  NSLocationWhenInUseUsageDescription: '撮影した場所を記録に残します。',
 };
 
 const ANDROID_PERMISSIONS = [
   '<uses-permission android:name="android.permission.CAMERA" />',
   '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
   '<uses-permission android:name="android.permission.INTERNET" />',
+  '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />',
+  '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />',
   // Saving into the gallery on Android 9 and older.
   '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />',
 ];

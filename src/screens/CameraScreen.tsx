@@ -4,7 +4,11 @@ import { useMenu } from '../ui/menuContext';
 import { useCamera } from '../capture/useCamera';
 import { encodeImageFile, type EncodedPhoto } from '../capture/imageUtil';
 import { setPendingCapture } from '../capture/pendingCapture';
+import { requestLocation } from '../capture/geolocation';
+import { readExif } from '../capture/exif';
+import { loadSettings } from '../settings';
 import PictaMark from '../ui/PictaMark';
+import type { GeoPoint } from '../types';
 
 /**
  * Home screen. Launching Picta means the viewfinder is already live — there is
@@ -33,13 +37,14 @@ export default function CameraScreen() {
   }, [location.state, navigate]);
 
   const goToReview = useCallback(
-    (photo: EncodedPhoto, capturedAt: number) => {
+    (photo: EncodedPhoto, capturedAt: number, locationFix?: Promise<GeoPoint | null>) => {
       setPendingCapture({
         blob: photo.blob,
         mimeType: photo.mimeType,
         width: photo.width,
         height: photo.height,
         capturedAt,
+        locationFix,
         previewUrl: URL.createObjectURL(photo.blob),
       });
       navigate('/review');
@@ -55,7 +60,10 @@ export default function CameraScreen() {
     window.setTimeout(() => setFlash(false), 280);
     try {
       const capturedAt = Date.now();
-      goToReview(await camera.capture(), capturedAt);
+      // Kick the fix off with the shutter and carry the promise to the review
+      // screen: writing a memo usually takes longer than getting a position.
+      const locationFix = loadSettings().recordLocation ? requestLocation() : undefined;
+      goToReview(await camera.capture(), capturedAt, locationFix);
     } catch (err) {
       setError(err instanceof Error ? err.message : '撮影に失敗しました');
     } finally {
@@ -71,8 +79,17 @@ export default function CameraScreen() {
       setBusy(true);
       setError('');
       try {
-        const capturedAt = file instanceof File && file.lastModified ? file.lastModified : Date.now();
-        goToReview(await encodeImageFile(file), capturedAt);
+        // A file from the OS camera or the library does carry EXIF — prefer its
+        // own timestamp and position over the file's mtime and a fresh fix.
+        const exif = await readExif(file);
+        const fallback = file instanceof File && file.lastModified ? file.lastModified : Date.now();
+        const capturedAt = exif.capturedAt ?? fallback;
+        const locationFix = exif.location
+          ? Promise.resolve(exif.location)
+          : loadSettings().recordLocation
+            ? requestLocation()
+            : undefined;
+        goToReview(await encodeImageFile(file), capturedAt, locationFix);
       } catch (err) {
         setError(err instanceof Error ? err.message : '画像を読み込めませんでした');
       } finally {

@@ -7,7 +7,10 @@ import ReviewScreen from '../screens/ReviewScreen';
 import { setPendingCapture } from '../capture/pendingCapture';
 import { listRecords } from '../db/records';
 import { listTags } from '../db/tags';
+import { loadPhotoBlob } from '../db/photoStore';
+import { parseExifBytes } from '../capture/exif';
 import type { SpeechRecognitionLike } from '../capture/speechTypes';
+import type { GeoPoint } from '../types';
 
 const T = new Date(2026, 8, 21, 12, 31, 0).getTime();
 
@@ -16,9 +19,15 @@ function stubObjectUrl() {
   URL.revokeObjectURL = vi.fn();
 }
 
-function primeCapture() {
+/** SOI + a tiny segment + EOI — enough for the EXIF writer to work on. */
+function jpegBytes() {
+  return new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x04, 0x11, 0x22, 0xff, 0xd9]);
+}
+
+function primeCapture(locationFix?: Promise<GeoPoint | null>) {
   setPendingCapture({
-    blob: new Blob([new Uint8Array(8)], { type: 'image/jpeg' }),
+    locationFix,
+    blob: new Blob([jpegBytes()], { type: 'image/jpeg' }),
     mimeType: 'image/jpeg',
     width: 1200,
     height: 900,
@@ -146,5 +155,67 @@ describe('撮影後画面', () => {
     await user.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(async () => expect((await listRecords())[0]?.memo).toBe('ここから見ると綺麗'));
     vi.unstubAllGlobals();
+  });
+});
+
+describe('撮影後画面の位置情報', () => {
+  const tokyo: GeoPoint = { latitude: 35.681236, longitude: 139.767125, source: 'device' };
+
+  it('取得できた位置を記録し、写真のEXIFにも書き込む', async () => {
+    const user = userEvent.setup();
+    primeCapture(Promise.resolve(tokyo));
+    renderReview();
+
+    await screen.findByRole('button', { name: /位置情報を記録/ });
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(async () => expect(await listRecords()).toHaveLength(1));
+    const [record] = await listRecords();
+    expect(record.location?.latitude).toBeCloseTo(35.681236, 5);
+    expect(record.location?.longitude).toBeCloseTo(139.767125, 5);
+
+    const blob = await loadPhotoBlob(record.photoId);
+    const exif = parseExifBytes(new Uint8Array(await blob!.arrayBuffer()));
+    expect(exif.capturedAt).toBe(T);
+    expect(exif.location?.latitude).toBeCloseTo(35.681236, 5);
+  });
+
+  it('位置情報をオフにすると記録にもEXIFにも入らない', async () => {
+    const user = userEvent.setup();
+    primeCapture(Promise.resolve(tokyo));
+    renderReview();
+
+    await user.click(await screen.findByRole('button', { name: /位置情報を記録/ }));
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(async () => expect(await listRecords()).toHaveLength(1));
+    const [record] = await listRecords();
+    expect(record.location).toBeUndefined();
+
+    const blob = await loadPhotoBlob(record.photoId);
+    const exif = parseExifBytes(new Uint8Array(await blob!.arrayBuffer()));
+    expect(exif.capturedAt).toBe(T);
+    expect(exif.location).toBeUndefined();
+  });
+
+  it('位置が取れなくても保存でき、撮影日時はEXIFに残る', async () => {
+    const user = userEvent.setup();
+    primeCapture(Promise.resolve(null));
+    renderReview();
+
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(async () => expect(await listRecords()).toHaveLength(1));
+    const [record] = await listRecords();
+    expect(record.location).toBeUndefined();
+    const blob = await loadPhotoBlob(record.photoId);
+    expect(parseExifBytes(new Uint8Array(await blob!.arrayBuffer())).capturedAt).toBe(T);
+  });
+
+  it('位置情報が無いときはトグルを出さない', async () => {
+    primeCapture();
+    renderReview();
+    await screen.findByRole('button', { name: '保存' });
+    expect(screen.queryByRole('button', { name: /位置情報/ })).toBeNull();
   });
 });

@@ -64,9 +64,11 @@ const browser = await chromium.launch({
     '--autoplay-policy=no-user-gesture-required',
   ],
 });
+const TOKYO = { latitude: 35.681236, longitude: 139.767125 };
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
-  permissions: ['camera'],
+  permissions: ['camera', 'geolocation'],
+  geolocation: TOKYO,
   acceptDownloads: true,
 });
 const page = await context.newPage();
@@ -117,6 +119,37 @@ try {
       }),
   );
   check('保存された写真も1:1', shot.w === shot.h, `${shot.w}x${shot.h}`);
+
+  const stored = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const rows = request.result.transaction(['records', 'photos']);
+          const records = rows.objectStore('records').getAll();
+          records.onsuccess = () => {
+            const record = records.result[0];
+            const photo = rows.objectStore('photos').get(record.photoId);
+            photo.onsuccess = () =>
+              resolve({
+                location: record.location,
+                head: Array.from(new Uint8Array(photo.result.bytes).slice(0, 10)),
+              });
+          };
+        };
+      }),
+  );
+  check(
+    '撮影地点が記録される',
+    Math.abs(stored.location?.latitude - TOKYO.latitude) < 0.001 &&
+      Math.abs(stored.location?.longitude - TOKYO.longitude) < 0.001,
+    JSON.stringify(stored.location),
+  );
+  const exifHead =
+    stored.head[2] === 0xff &&
+    stored.head[3] === 0xe1 &&
+    String.fromCharCode(...stored.head.slice(6, 10)) === 'Exif';
+  check('保存写真にEXIFが書き込まれる', exifHead, stored.head.join(','));
 
   console.log('過去の記録');
   await page.goto(`${BASE}/#/records`, { waitUntil: 'networkidle' });
@@ -178,6 +211,20 @@ try {
   check('CSVがBOM付きUTF-8', csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf);
   const csv = strFromU8(csvBytes);
   check('日本語が化けない', csv.includes('ここから見ると綺麗') && csv.includes('"旅行|グルメ"'));
+  const exported = entries[names.find((n) => n.startsWith('photos/'))];
+  check(
+    'ZIP内の写真にもEXIFが残る',
+    exported[2] === 0xff &&
+      exported[3] === 0xe1 &&
+      String.fromCharCode(...exported.slice(6, 10)) === 'Exif',
+  );
+  const header = strFromU8(entries['records.csv']).split('\r\n')[0].replace(/^\uFEFF/, '');
+  check(
+    'CSVに緯度経度の列がある',
+    header.endsWith('latitude,longitude') && csv.includes(String(TOKYO.latitude.toFixed(6))),
+    header,
+  );
+
   const photoNames = names.filter((n) => n.startsWith('photos/')).map((n) => n.slice(7));
   check(
     '写真とCSVの対応が取れている',

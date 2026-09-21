@@ -34,10 +34,21 @@ describe('CSV', () => {
   it('仕様どおりの列と書式で出力する', () => {
     const csv = buildCsv(uniquePhotoFileNames([record()]));
     const lines = csv.replace(BOM, '').trimEnd().split('\r\n');
-    expect(lines[0]).toBe('id,capturedAt,memo,tags,photoFileName');
+    expect(lines[0]).toBe('id,capturedAt,memo,tags,photoFileName,latitude,longitude');
     expect(lines[1]).toBe(
-      '001,2026-09-21T12:31:00,"この店また来たい","旅行|グルメ","20260921_123100.jpg"',
+      '001,2026-09-21T12:31:00,"この店また来たい","旅行|グルメ","20260921_123100.jpg",,',
     );
+  });
+
+  it('位置情報がある記録は緯度・経度を出力する', () => {
+    const csv = buildCsv(
+      uniquePhotoFileNames([
+        record({
+          location: { latitude: 35.681236, longitude: 139.767125, source: 'device' },
+        }),
+      ]),
+    );
+    expect(csv).toContain('"20260921_123100.jpg",35.681236,139.767125');
   });
 
   it('日本語が化けないようBOM付きUTF-8で出力する', () => {
@@ -57,7 +68,7 @@ describe('CSV', () => {
 
   it('タグ無しは空文字列になる', () => {
     const csv = buildCsv(uniquePhotoFileNames([record({ tags: [], memo: '' })]));
-    expect(csv).toContain('001,2026-09-21T12:31:00,"","","20260921_123100.jpg"');
+    expect(csv).toContain('001,2026-09-21T12:31:00,"","","20260921_123100.jpg",,');
   });
 
   it('同じ秒に撮影された写真のファイル名が衝突しない', () => {
@@ -82,9 +93,17 @@ describe('manifest', () => {
   it('形式とバージョンを持つ', () => {
     const manifest = buildManifest(3, new Date(T));
     expect(manifest.format).toBe('picta-export');
-    expect(manifest.version).toBe(1);
+    expect(manifest.version).toBe(2);
     expect(manifest.recordCount).toBe(3);
-    expect(manifest.csv.columns).toEqual(['id', 'capturedAt', 'memo', 'tags', 'photoFileName']);
+    expect(manifest.csv.columns).toEqual([
+      'id',
+      'capturedAt',
+      'memo',
+      'tags',
+      'photoFileName',
+      'latitude',
+      'longitude',
+    ]);
   });
 });
 

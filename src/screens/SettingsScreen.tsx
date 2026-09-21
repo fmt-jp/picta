@@ -4,6 +4,7 @@ import TagManager from '../ui/TagManager';
 import { useMenu } from '../ui/menuContext';
 import { loadSettings, saveSettings } from '../settings';
 import { photoLibraryHint } from '../platform/photoLibrary';
+import { hasGeolocation } from '../capture/geolocation';
 import { photoUsage } from '../db/photoStore';
 import { formatBytes } from '../format';
 import { platformName } from '../platform/env';
@@ -46,6 +47,25 @@ export default function SettingsScreen() {
               撮影した写真を端末にも保存する
             </label>
             <p className="hint">{photoLibraryHint()}</p>
+          </div>
+        </section>
+
+        <section className="section">
+          <h2 className="field-label">位置情報</h2>
+          <div className="card">
+            <label style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={settings.recordLocation}
+                onChange={(e) => setSettings(saveSettings({ recordLocation: e.target.checked }))}
+              />
+              撮影した場所を記録する
+            </label>
+            <p className="hint">
+              {hasGeolocation()
+                ? '撮影時に現在地を取得し、記録と写真のEXIFに残します。位置情報の許可は初回の撮影時に求められます。撮影ごとに記録するかどうかを切り替えられます。'
+                : 'この環境では位置情報を取得できません。'}
+            </p>
           </div>
         </section>
 

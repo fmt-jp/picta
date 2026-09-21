@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { GeoPoint } from '../types';
 import { useNavigate } from 'react-router-dom';
 import ScreenHeader from '../ui/ScreenHeader';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import TagPicker from '../ui/TagPicker';
+import { formatDateTime } from '../format';
 import { useSpeechInput } from '../capture/useSpeech';
 import { clearPendingCapture, getPendingCapture } from '../capture/pendingCapture';
 import { createRecord } from '../db/records';
+import { awaitLocation, formatCoordinates } from '../capture/geolocation';
+import { withExif } from '../capture/exif';
 import { savePhotoToLibrary } from '../platform/photoLibrary';
 import { loadSettings } from '../settings';
 
@@ -21,11 +25,29 @@ export default function ReviewScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [location, setLocation] = useState<GeoPoint | null>(null);
+  const [locating, setLocating] = useState(() => !!capture?.locationFix);
+  const [attachLocation, setAttachLocation] = useState(true);
 
   const appendSpeech = useCallback((text: string) => {
     setMemo((current) => (current ? `${current.replace(/\s+$/, '')} ${text}` : text));
   }, []);
   const speech = useSpeechInput(appendSpeech);
+
+  // The fix was started with the shutter; show it as soon as it lands.
+  useEffect(() => {
+    const fix = capture?.locationFix;
+    if (!fix) return;
+    let active = true;
+    void fix.then((point) => {
+      if (!active) return;
+      setLocation(point);
+      setLocating(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [capture]);
 
   // A reload drops the in-memory draft — go back to the viewfinder.
   useEffect(() => {
@@ -48,9 +70,23 @@ export default function ReviewScreen() {
     setError('');
     speech.stop();
     try {
+      // Give a fix that is still in flight a moment to land, but never hold up
+      // the save for it.
+      const point = attachLocation
+        ? (location ?? (await awaitLocation(capture.locationFix, 2000)))
+        : null;
+
+      // A canvas capture carries no metadata, so the date and place are written
+      // into the JPEG here — that is what the photo library copy and every
+      // exported photo will carry.
+      const blob = await withExif(capture.blob, {
+        capturedAt: capture.capturedAt,
+        location: point,
+      });
+
       const record = await createRecord({
         photo: {
-          blob: capture.blob,
+          blob,
           mimeType: capture.mimeType,
           width: capture.width,
           height: capture.height,
@@ -58,6 +94,7 @@ export default function ReviewScreen() {
         memo,
         tags,
         capturedAt: capture.capturedAt,
+        location: point,
       });
 
       // The device copy is a bonus, never a reason to lose the record: the
@@ -65,7 +102,7 @@ export default function ReviewScreen() {
       // reported but not thrown.
       let toast = '保存しました';
       if (loadSettings().savePhotosToLibrary) {
-        const result = await savePhotoToLibrary(capture.blob, record.photoFileName);
+        const result = await savePhotoToLibrary(blob, record.photoFileName);
         if (result.status === 'denied' || result.status === 'failed') {
           toast = '保存しました（端末への保存は失敗）';
         }
@@ -100,8 +137,25 @@ export default function ReviewScreen() {
           </div>
         ) : null}
 
-        <div className="photo-frame section">
+        <div className="photo-frame">
           <img src={capture.previewUrl} alt="撮影した写真" />
+        </div>
+
+        <div className="meta-row section">
+          <span className="meta-item">🕘 {formatDateTime(capture.capturedAt)}</span>
+          {locating ? (
+            <span className="meta-item">📍 位置情報を取得中…</span>
+          ) : location ? (
+            <button
+              type="button"
+              className={attachLocation ? 'meta-toggle on' : 'meta-toggle'}
+              aria-pressed={attachLocation}
+              onClick={() => setAttachLocation((on) => !on)}
+              title={formatCoordinates(location)}
+            >
+              📍 {attachLocation ? '位置情報を記録' : '位置情報を記録しない'}
+            </button>
+          ) : null}
         </div>
 
         <div className="section">

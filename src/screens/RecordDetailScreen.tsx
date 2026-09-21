@@ -8,6 +8,7 @@ import { deleteRecord, getRecord } from '../db/records';
 import { loadPhotoBlob } from '../db/photoStore';
 import { invalidatePhotoUrl, usePhotoUrl } from '../db/usePhotoUrl';
 import { photoLibraryMode, savePhotoToLibrary } from '../platform/photoLibrary';
+import { formatCoordinates, mapUrl } from '../capture/geolocation';
 
 export default function RecordDetailScreen() {
   const { id } = useParams();
@@ -105,6 +106,27 @@ export default function RecordDetailScreen() {
         <dl className="dl section">
           <dt>撮影日時</dt>
           <dd>{formatDateTime(record.capturedAt)}</dd>
+
+          <dt>場所</dt>
+          <dd>
+            {record.location ? (
+              <>
+                {formatCoordinates(record.location)}
+                {record.location.accuracy ? `（誤差 約${record.location.accuracy}m）` : ''}
+                {' '}
+                <a
+                  className="geo-link"
+                  href={mapUrl(record.location)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  地図で開く
+                </a>
+              </>
+            ) : (
+              <span style={{ color: 'var(--text-faint)' }}>記録なし</span>
+            )}
+          </dd>
 
           <dt>メモ</dt>
           <dd style={record.memo ? undefined : { color: 'var(--text-faint)' }}>

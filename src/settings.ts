@@ -9,10 +9,13 @@ const KEY = 'picta.settings.v1';
 export interface Settings {
   /** Also save each capture to the device photo library (spec §9.2). */
   savePhotosToLibrary: boolean;
+  /** Attach the place a photo was taken, and write it into the JPEG's EXIF. */
+  recordLocation: boolean;
 }
 
 const DEFAULTS: Settings = {
   savePhotosToLibrary: true,
+  recordLocation: true,
 };
 
 export function loadSettings(): Settings {

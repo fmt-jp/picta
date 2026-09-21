@@ -1,5 +1,15 @@
 /** Core domain types shared across every screen and platform adapter. */
 
+/** Where a photo was taken. */
+export interface GeoPoint {
+  latitude: number;
+  longitude: number;
+  /** Metres, for device fixes only. */
+  accuracy?: number;
+  /** 'device' = the Geolocation API at shutter time, 'exif' = read from a file. */
+  source: 'device' | 'exif';
+}
+
 /** A stored tag. `name` is unique (case-sensitive, trimmed). */
 export interface Tag {
   id: string;
@@ -24,6 +34,8 @@ export interface Record {
   tags: string[];
   /** ms epoch — when the shutter was pressed. */
   capturedAt: number;
+  /** Where the photo was taken, when a fix was available and allowed. */
+  location?: GeoPoint;
   /** ms epoch — when the record was written to storage. */
   createdAt: number;
   /** ms epoch — last edit of memo/tags. */
@@ -47,6 +59,12 @@ export interface PendingCapture {
   width: number;
   height: number;
   capturedAt: number;
+  /**
+   * The location fix started when the shutter was pressed. It is awaited (with
+   * a short deadline) at save time so waiting for GPS never blocks framing the
+   * next shot. Null once resolved with no usable fix.
+   */
+  locationFix?: Promise<GeoPoint | null>;
   /** Object URL for the preview; revoked when the draft is discarded. */
   previewUrl: string;
 }

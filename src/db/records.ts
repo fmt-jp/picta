@@ -1,4 +1,4 @@
-import type { Record } from '../types';
+import type { GeoPoint, Record } from '../types';
 import { photoStamp } from '../capture/imageUtil';
 import { getDb } from './database';
 import { newId } from './ids';
@@ -10,6 +10,7 @@ export interface NewRecordInput {
   memo: string;
   tags: string[];
   capturedAt: number;
+  location?: GeoPoint | null;
 }
 
 /** Newest first — the order every list in Picta uses. */
@@ -41,6 +42,7 @@ export async function createRecord(input: NewRecordInput): Promise<Record> {
     createdAt: now,
     updatedAt: now,
   };
+  if (input.location) record.location = input.location;
 
   const db = await getDb();
   try {
@@ -78,7 +80,7 @@ export async function getRecord(id: string): Promise<Record | undefined> {
 
 export async function updateRecord(
   id: string,
-  patch: { memo?: string; tags?: string[] },
+  patch: { memo?: string; tags?: string[]; location?: GeoPoint | null },
 ): Promise<Record> {
   const db = await getDb();
   const current = await db.get('records', id);
@@ -93,6 +95,9 @@ export async function updateRecord(
     tags,
     updatedAt: Date.now(),
   };
+  // `location: null` removes it; leaving the key out keeps what is stored.
+  if (patch.location === null) delete next.location;
+  else if (patch.location) next.location = patch.location;
   await db.put('records', next);
   return next;
 }

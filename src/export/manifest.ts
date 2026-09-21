@@ -5,7 +5,8 @@ import { CSV_COLUMNS } from './csv';
  * tool) can tell what it is looking at and stay backward compatible (spec §24).
  */
 export const EXPORT_FORMAT = 'picta-export';
-export const EXPORT_VERSION = 1;
+/** 2 added the latitude/longitude columns to records.csv. */
+export const EXPORT_VERSION = 2;
 
 export interface ExportManifest {
   format: typeof EXPORT_FORMAT;

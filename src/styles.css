@@ -108,6 +108,7 @@ textarea {
 
 .icon-button {
   flex: none;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -264,6 +265,8 @@ textarea {
 
 .tag-chip {
   border: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
   background: var(--bg-raised);
   border-radius: 999px;
   padding: 9px 15px;
@@ -796,4 +799,45 @@ textarea {
   100% {
     opacity: 0;
   }
+}
+
+/* --- capture metadata (date / place) ------------------------------------- */
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.meta-item,
+.meta-toggle {
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-toggle.on {
+  color: var(--text);
+  border-color: #4a4420;
+  background: #2a2614;
+}
+
+.meta-toggle:not(.on) {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.geo-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 214, 102, 0.4);
 }

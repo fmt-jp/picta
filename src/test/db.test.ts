@@ -122,6 +122,34 @@ describe('記録の一覧・編集・削除', () => {
     expect(updated.capturedAt).toBe(T);
   });
 
+  it('位置情報を保存し、あとから削除できる', async () => {
+    const record = await createRecord({
+      photo: samplePhoto(),
+      memo: '',
+      tags: [],
+      capturedAt: T,
+      location: { latitude: 35.681236, longitude: 139.767125, accuracy: 12, source: 'device' },
+    });
+    expect((await getRecord(record.id))?.location?.latitude).toBeCloseTo(35.681236, 6);
+
+    // メモ編集だけでは位置情報は消えない
+    await updateRecord(record.id, { memo: 'あとから一言' });
+    expect((await getRecord(record.id))?.location).toBeDefined();
+
+    await updateRecord(record.id, { location: null });
+    expect((await getRecord(record.id))?.location).toBeUndefined();
+  });
+
+  it('位置情報なしでも保存できる', async () => {
+    const record = await createRecord({
+      photo: samplePhoto(),
+      memo: '',
+      tags: [],
+      capturedAt: T,
+    });
+    expect((await getRecord(record.id))?.location).toBeUndefined();
+  });
+
   it('メモだけを削除できる', async () => {
     const record = await createRecord({
       photo: samplePhoto(),

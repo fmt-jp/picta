@@ -1,13 +1,24 @@
 import type { Record } from '../types';
 
 /**
- * CSV shape (spec §18.1):
- *   id,capturedAt,memo,tags,photoFileName
+ * CSV shape:
+ *   id,capturedAt,memo,tags,photoFileName,latitude,longitude
  *
- * Photos are never embedded in the CSV — the ZIP export pairs this file with
- * a photos/ directory using the same `photoFileName` values.
+ * The first five columns are the format from spec §18.1; the coordinates were
+ * appended (export version 2) once places were recorded, so a reader that only
+ * knows the original five still lines up. They are empty when a record has no
+ * place. Photos are never embedded in the CSV — the ZIP export pairs this file
+ * with a photos/ directory using the same `photoFileName` values.
  */
-export const CSV_COLUMNS = ['id', 'capturedAt', 'memo', 'tags', 'photoFileName'] as const;
+export const CSV_COLUMNS = [
+  'id',
+  'capturedAt',
+  'memo',
+  'tags',
+  'photoFileName',
+  'latitude',
+  'longitude',
+] as const;
 
 /** Excel on Japanese Windows reads UTF-8 as Shift_JIS without this marker. */
 export const BOM = '﻿';
@@ -62,6 +73,8 @@ export function buildCsv(rows: ExportRow[], withBom = true): string {
         escapeCsvField(record.memo),
         escapeCsvField(record.tags.join('|')),
         escapeCsvField(photoFileName),
+        record.location ? record.location.latitude.toFixed(6) : '',
+        record.location ? record.location.longitude.toFixed(6) : '',
       ].join(','),
     );
   }

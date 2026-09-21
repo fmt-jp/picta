@@ -7,6 +7,7 @@ import { useSpeechInput } from '../capture/useSpeech';
 import { getRecord, updateRecord } from '../db/records';
 import { usePhotoUrl } from '../db/usePhotoUrl';
 import { formatDateTime } from '../format';
+import { formatCoordinates } from '../capture/geolocation';
 
 /** メモとタグだけを編集する。写真そのものは編集しない（仕様§13）。 */
 export default function RecordEditScreen() {
@@ -15,6 +16,7 @@ export default function RecordEditScreen() {
   const [record, setRecord] = useState<Record | null | undefined>(undefined);
   const [memo, setMemo] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [keepLocation, setKeepLocation] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const photoUrl = usePhotoUrl(record?.photoId);
@@ -44,7 +46,7 @@ export default function RecordEditScreen() {
     setError('');
     speech.stop();
     try {
-      await updateRecord(record.id, { memo, tags });
+      await updateRecord(record.id, { memo, tags, location: keepLocation ? undefined : null });
       navigate(`/records/${record.id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存に失敗しました');
@@ -84,9 +86,20 @@ export default function RecordEditScreen() {
         <div className="photo-frame section">
           {photoUrl ? <img src={photoUrl} alt="" /> : null}
         </div>
-        <p className="hint" style={{ marginTop: -14, marginBottom: 18 }}>
-          {formatDateTime(record.capturedAt)}
-        </p>
+        <div className="meta-row section">
+          <span className="meta-item">🕘 {formatDateTime(record.capturedAt)}</span>
+          {record.location ? (
+            <button
+              type="button"
+              className={keepLocation ? 'meta-toggle on' : 'meta-toggle'}
+              aria-pressed={keepLocation}
+              onClick={() => setKeepLocation((on) => !on)}
+              title={formatCoordinates(record.location)}
+            >
+              📍 {keepLocation ? '位置情報' : '位置情報を削除'}
+            </button>
+          ) : null}
+        </div>
 
         <div className="section">
           <label className="field-label" htmlFor="memo">

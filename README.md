@@ -14,6 +14,7 @@ Pictaは、撮影した直後に短いメモとタグを添えて残すための
 - 起動直後にカメラ（ホーム画面やダッシュボードを挟まない）
 - 1:1のビューファインダー。**見えている枠がそのまま保存される**
 - 撮影後にメモ（キーボード / 音声入力）とタグを付けて保存
+- 撮影日時と撮影地点を記録し、**写真のEXIFにも書き込む**
 - 登録済みタグの複数選択と、その場での新規タグ追加
 - 写真をアプリ内と端末側の両方に保存
 - 撮影日時の新しい順・日付グループの記録一覧
@@ -88,12 +89,15 @@ npx cap open ios         # または npx cap open android
 `npm run setup:native` が追記する内容:
 
 - iOS: `NSCameraUsageDescription` / `NSMicrophoneUsageDescription` /
-  `NSSpeechRecognitionUsageDescription` / `NSPhotoLibraryAddUsageDescription`
+  `NSSpeechRecognitionUsageDescription` / `NSPhotoLibraryAddUsageDescription` /
+  `NSLocationWhenInUseUsageDescription`
 - Android: `CAMERA` / `RECORD_AUDIO` / `INTERNET` /
+  `ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION` /
   `WRITE_EXTERNAL_STORAGE`(maxSdkVersion=28) と カメラfeature（任意）
 
 権限は起動時に一括要求せず、**その機能を初めて使うとき**に要求します
-（カメラ画面を開いたとき、マイクボタンを押したとき、端末へ保存するとき）。
+（カメラ画面を開いたとき、マイクボタンを押したとき、初めて撮影したとき、
+端末へ保存するとき）。
 
 ## プラットフォーム別の制約
 
@@ -113,6 +117,31 @@ Pictaは無理に同一実装にせず、各プラットフォームで可能な
 ビューファインダーに映っている範囲と完全に一致します（`object-fit: cover` と同じ切り出し）。
 保存時は長辺2048px・JPEG品質0.9に正規化します（容量対策）。
 ファイル選択のフォールバックで取り込んだ画像も、同じく中央を正方形に切り出します。
+
+### 撮影日時と位置情報（EXIF）
+
+`getUserMedia` で撮影した画像はcanvas経由で生成されるため、**EXIFが一切付きません**。
+そのためPictaは日時と位置を自分で取得し、記録として保存したうえで、
+保存する写真のEXIFにも書き込みます。
+
+| 項目 | 取得元 |
+| --- | --- |
+| 撮影日時 | シャッターを押した時刻。ファイル選択で取り込んだ画像は、その画像の `DateTimeOriginal` を優先 |
+| 撮影地点 | Geolocation API。ファイル選択で取り込んだ画像は、その画像のGPS EXIFを優先 |
+
+- 位置情報の許可は**初回の撮影時**に求めます（起動時には要求しません）
+- 取得はシャッターと同時に開始し、保存時に最大2秒だけ待ちます。
+  取得できなくても写真は必ず保存されます
+- 撮影後画面のバッジで、その1枚だけ位置情報を付けない選択ができます
+- 設定画面で位置情報の記録そのものをOFFにできます
+- 記録詳細では座標を表示し、「地図で開く」で外部の地図サービスを開きます
+  （タップしたときだけ外部へ遷移します）
+- 編集画面で、保存済みの記録から位置情報だけを削除できます
+
+書き込むEXIFタグは `DateTime` / `DateTimeOriginal` / `DateTimeDigitized` /
+`OffsetTimeOriginal` / `GPSLatitude` / `GPSLongitude`（と各Ref）だけです。
+これにより、端末のフォトライブラリに保存したコピーや、ZIPで書き出した写真も
+他のアプリで撮影日時と場所が見える状態になります。
 
 ### 音声入力
 
@@ -172,13 +201,16 @@ Blobではなく**ArrayBuffer**で保存しています。
 ### CSV
 
 ```csv
-id,capturedAt,memo,tags,photoFileName
-001,2026-09-21T12:31:00,"この店また来たい","旅行|グルメ","20260921_123100.jpg"
+id,capturedAt,memo,tags,photoFileName,latitude,longitude
+001,2026-09-21T12:31:00,"この店また来たい","旅行|グルメ","20260921_123100.jpg",35.681236,139.767125
+002,2026-09-20T18:30:00,"ここから見ると綺麗","旅行","20260920_183000.jpg",,
 ```
 
 - 文字コードは**BOM付きUTF-8**（Excelで日本語が化けないため）
 - タグは `|` 区切り
 - 撮影日時は端末のローカル時刻
+- `latitude` / `longitude` は位置情報がある記録だけ入る（エクスポート形式 version 2 で追加。
+  先頭5列は version 1 と同じ並びなので、古い列だけを読む処理もそのまま動きます）
 - 写真そのものは含まれません
 
 ### 写真付きZIP（バックアップ）
@@ -197,7 +229,7 @@ Picta_Export_20260921.zip
 ```json
 {
   "format": "picta-export",
-  "version": 1,
+  "version": 2,
   "app": "Picta 1.0",
   "exportedAt": "2026-09-21T03:31:00.000Z",
   "recordCount": 2,
@@ -205,7 +237,7 @@ Picta_Export_20260921.zip
   "csv": {
     "file": "records.csv",
     "encoding": "utf-8-bom",
-    "columns": ["id", "capturedAt", "memo", "tags", "photoFileName"],
+    "columns": ["id", "capturedAt", "memo", "tags", "photoFileName", "latitude", "longitude"],
     "tagSeparator": "|"
   },
   "photoDir": "photos/"
@@ -246,7 +278,9 @@ src/
 ## v1で実装していないもの
 
 クラウド同期、アカウント、SNS的な機能、AIによる画像認識や自動メモ生成、写真編集、
-フィルター、地図・GPS、カレンダー連携、タスク管理、リマインダー、音声ファイルの保存。
+フィルター、アプリ内の地図表示、位置情報を使った検索、カレンダー連携、タスク管理、
+リマインダー、音声ファイルの保存。
+（位置情報の**記録と表示**は対応しています。地図表示と位置での検索が未対応です）
 ZIPからのインポート（復元）も未実装ですが、`manifest.json` にバージョンを持たせることで
 将来対応できる形式にしてあります。
 
