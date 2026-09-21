@@ -235,3 +235,50 @@
 ### 次Phaseへの引き継ぎ
 
 - エクスポートはCSV → ZIPの順。ZIPにはmanifest.jsonでバージョンを持たせる
+
+---
+
+## Phase 10-11: CSV / ZIPエクスポート
+
+### 実装
+
+- CSV（仕様§18.1）
+  - 列：`id,capturedAt,memo,tags,photoFileName`
+  - タグは `|` 区切り、メモ・タグ・ファイル名はダブルクォートで囲みエスケープ
+  - **BOM付きUTF-8**（Excelでの文字化け対策）、改行はCRLF
+  - 撮影日時はローカル時刻の `2026-09-21T12:31:00`
+- ZIP（仕様§19・§24）
+  - `manifest.json`（`format: picta-export` / `version: 1` / タイムゾーン等）
+  - `records.csv`
+  - `photos/<photoFileName>`
+  - 同一秒に撮影された写真は `_2`, `_3` を付けて衝突回避（CSVと必ず一致）
+  - fflateのストリーミングZipを使い、写真は1枚ずつ処理して
+    メモリピークを抑える。JPEGは再圧縮せず格納（ZipPassThrough）
+  - 進捗（何枚目か）を画面に表示
+- 受け渡し `src/export/deliver.ts`
+  - Web：ダウンロード
+  - iOS/Android：キャッシュに書き出して共有シートへ
+
+### テスト
+
+- `export.test.ts` 14件：CSV書式・BOM・カンマ/引用符/改行・タグ無し・
+  ファイル名衝突・日時書式・manifest・ZIP構成・CSVと写真の対応・
+  日本語が化けないこと・進捗通知・0件エクスポート
+
+### 動作確認（Chromium E2E）
+
+- 2件撮影 → ZIP出力：
+  `manifest.json, photos/20260921_092918.jpg, photos/20260921_092918_2.jpg, records.csv`
+- CSV出力：`Picta_Export_20260921.csv`
+- 同一秒撮影の `_2` 付与を実環境でも確認
+
+### 問題点
+
+- ネイティブでのZIP受け渡しは base64 を経由するため、
+  非常に大きなバックアップでは時間とメモリを要する
+  （必要になれば `capacitor-blob-writer` 等での改善余地あり）
+- インポート（復元）はv1では未実装。manifest.jsonにより将来対応可能な構造
+
+### 次Phaseへの引き継ぎ
+
+- iOS/Androidの権限記述とREADME整備
