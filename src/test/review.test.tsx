@@ -54,6 +54,14 @@ beforeEach(async () => {
 });
 
 describe('撮影後画面', () => {
+  it('ヘッダーにPictaのアイコンと文字が出る（見出しは読み上げ用に残す）', () => {
+    const { container } = renderReview();
+    const header = container.querySelector('.header');
+    expect(header?.querySelector('.camera-wordmark svg')).toBeInTheDocument();
+    expect(header).toHaveTextContent('Picta');
+    expect(screen.getByRole('heading', { name: '記録する' })).toBeInTheDocument();
+  });
+
   it('メモ空欄・タグ無しでも保存できる', async () => {
     const user = userEvent.setup();
     renderReview();

@@ -95,6 +95,13 @@ textarea {
   flex: none;
 }
 
+/* Brand lockup centred between the leading slot and the actions. */
+.header-brand .camera-wordmark {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
 .header h1 {
   font-size: 17px;
   font-weight: 600;

@@ -100,6 +100,16 @@ try {
   );
 
   console.log('撮影と保存');
+  await page.getByRole('button', { name: '撮影' }).click();
+  await page.getByLabel('メモ（任意）').waitFor();
+  check(
+    '撮影後画面のヘッダーにもPictaが出る',
+    await page.locator('.header .camera-wordmark svg').isVisible(),
+  );
+  await page.getByRole('button', { name: '破棄' }).click();
+  await page.waitForSelector('video', { state: 'visible' });
+  check('破棄でカメラに戻る', true);
+
   await shoot('この店また来たい', ['旅行', 'グルメ']);
   await shoot('ここから見ると綺麗', ['旅行']);
 

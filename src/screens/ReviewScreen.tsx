@@ -120,6 +120,7 @@ export default function ReviewScreen() {
     <div className="screen">
       <ScreenHeader
         title="記録する"
+        brand
         actions={
           <button
             className="icon-button"
