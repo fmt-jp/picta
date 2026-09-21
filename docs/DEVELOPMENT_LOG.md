@@ -75,3 +75,65 @@
 ### 次Phaseへの引き継ぎ
 
 - 撮影結果は `EncodedPhoto`（Blob + 寸法）として `/review` に渡る
+
+---
+
+## Phase 3: 撮影後画面（メモ・音声入力・タグ）
+
+### 実装
+
+- `/review` 画面：写真プレビュー → メモ → タグ → 保存
+- メモは任意。空欄のまま保存できる（保存ボタンは常に有効）
+- 音声入力 `src/capture/useSpeech.ts`
+  - Web: Web Speech API（`webkitSpeechRecognition` も考慮）、`ja-JP`
+  - iOS/Android: `@capacitor-community/speech-recognition` を動的import
+  - 認識したテキストのみメモへ追記。音声データは保存しない（仕様§6, §23）
+  - マイク権限はマイクボタンを押した時点で要求する
+- `src/ui/TagPicker.tsx`：登録済みタグの複数選択＋「＋ 新しいタグ」
+  - その場で追加したタグは即座に登録済みタグになる
+- 破棄時はメモ／タグ入力済みなら確認ダイアログ
+
+### テスト
+
+- `review.test.tsx`：空欄保存／日本語メモ＋タグ／タグ再選択で解除／
+  新規タグ追加／音声入力非対応時の案内／音声認識結果の反映
+
+---
+
+## Phase 4: ローカル保存
+
+### 実装
+
+- IndexedDB（`idb`）にスキーマを定義
+  - `records`（メタデータのみ）／`photos`（画像本体）／`tags`
+  - 記録一覧・検索で画像バイト列を読み込まない構造にした
+- 写真の保存先はプラットフォームで切り替える（仕様§20の検討結果）
+  - Web/PWA: `photos` ストアに **ArrayBuffer** として保存
+    （古いiOS SafariはIndexedDB内のBlobを失う既知の問題があるため）
+  - iOS/Android: アプリ専用領域に実ファイル(.jpg)として保存し、
+    DBにはパスのみ保持（`@capacitor/filesystem`）
+- `src/db/records.ts`：作成・一覧・取得・更新・削除・検索・タグ別一覧・件数集計
+- `src/db/tags.ts`：登録済みタグ、名称変更（記録側も追従／同名は統合）、削除
+- 初回起動時に仕様§7.1の9タグを初期登録
+- `usePhotoUrl`：ObjectURLを参照カウントで共有し、確実に解放する
+
+### テスト
+
+- `db.test.ts` 23件：初期タグ、重複タグ、空欄保存、長文(5000字)、
+  新しい順、編集、削除（写真も削除）、タグ別一覧、件数、
+  検索（メモ／タグ／0件／全角半角同一視）、タグ名変更・統合・削除
+
+### 動作確認
+
+- Chromium E2E：撮影 → メモ入力 → タグ2件選択 → 新規タグ追加 → 保存
+  - IndexedDBに記録1件・写真40KBが保存されることを確認
+  - `photoFileName` が `YYYYMMDD_HHMMSS.jpg` 形式であることを確認
+
+### 問題点
+
+- fake-indexeddb + jsdom ではBlobの構造化複製が不完全だったため、
+  ArrayBuffer保存に変更した（結果的にSafari対策にもなった）
+
+### 次Phaseへの引き継ぎ
+
+- 端末フォトライブラリへの保存はまだ未実装（保存はアプリ内のみ）

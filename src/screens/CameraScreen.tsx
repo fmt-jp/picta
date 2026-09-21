@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMenu } from '../ui/menuContext';
 import { useCamera } from '../capture/useCamera';
 import { encodeImageFile, type EncodedPhoto } from '../capture/imageUtil';
@@ -13,10 +13,22 @@ export default function CameraScreen() {
   const openMenu = useMenu();
   const navigate = useNavigate();
   const camera = useCamera();
+  const location = useLocation();
   const [busy, setBusy] = useState(false);
+  const [savedToast, setSavedToast] = useState(false);
   const [flash, setFlash] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Brief confirmation after returning from a save, then back to a clean
+  // viewfinder — the toast must not survive a reload or a back navigation.
+  useEffect(() => {
+    if ((location.state as { saved?: boolean } | null)?.saved !== true) return;
+    setSavedToast(true);
+    navigate('/', { replace: true, state: null });
+    const timer = window.setTimeout(() => setSavedToast(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [location.state, navigate]);
 
   const goToReview = useCallback(
     (photo: EncodedPhoto, capturedAt: number) => {
@@ -125,6 +137,12 @@ export default function CameraScreen() {
         {error ? (
           <div className="camera-message" role="alert" style={{ justifyContent: 'flex-start', paddingTop: 96 }}>
             <span>{error}</span>
+          </div>
+        ) : null}
+
+        {savedToast ? (
+          <div className="toast" role="status">
+            保存しました
           </div>
         ) : null}
 
