@@ -67,4 +67,9 @@ describe('カメラ画面', () => {
     const { container } = renderCamera();
     expect(container.querySelector('.camera-frame')).toBeInTheDocument();
   });
+
+  it('映像が出ていないときはグリッドを重ねない', () => {
+    const { container } = renderCamera();
+    expect(container.querySelector('.camera-grid')).toBeNull();
+  });
 });

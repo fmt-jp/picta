@@ -98,6 +98,12 @@ try {
     Math.abs(frame.width - frame.height) <= 1,
     `${frame.width}x${frame.height}`,
   );
+  const grid = await page.locator('.camera-grid').boundingBox();
+  check(
+    '9分割グリッドが枠にぴったり重なる',
+    grid.x === frame.x && grid.y === frame.y && grid.width === frame.width,
+    JSON.stringify(grid),
+  );
 
   console.log('撮影と保存');
   await page.getByRole('button', { name: '撮影' }).click();

@@ -15,6 +15,7 @@
   --accent: #ffd666;
   --accent-text: #2a2205;
   --danger: #ff6b6b;
+  --grid-line: rgba(255, 255, 255, 0.35);
   --radius: 14px;
   --radius-sm: 10px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -541,6 +542,30 @@ textarea {
   font-size: 14px;
   color: #ffc9c9;
   text-align: center;
+}
+
+/* 3x3 composition guides. Four 1px lines drawn as background layers, so the
+   overlay stays a single element that never intercepts a tap. */
+.camera-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--grid-line), var(--grid-line)),
+    linear-gradient(var(--grid-line), var(--grid-line)),
+    linear-gradient(var(--grid-line), var(--grid-line)),
+    linear-gradient(var(--grid-line), var(--grid-line));
+  background-size:
+    1px 100%,
+    1px 100%,
+    100% 1px,
+    100% 1px;
+  background-position:
+    33.333% 0,
+    66.667% 0,
+    0 33.333%,
+    0 66.667%;
 }
 
 .flash {

@@ -138,6 +138,9 @@ export default function CameraScreen() {
             style={{ display: camera.status === 'ready' ? 'block' : 'none' }}
           />
 
+          {/* Rule-of-thirds guides, only over a live picture. */}
+          {camera.status === 'ready' ? <div className="camera-grid" aria-hidden="true" /> : null}
+
           {flash ? <div className="flash" aria-hidden="true" /> : null}
 
           {camera.status === 'starting' ? (
