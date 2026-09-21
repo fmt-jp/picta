@@ -8,7 +8,6 @@ import RecordDetailScreen from '../screens/RecordDetailScreen';
 import RecordEditScreen from '../screens/RecordEditScreen';
 import { createRecord, getRecord, listRecords } from '../db/records';
 
-const DAY = 24 * 60 * 60 * 1000;
 const T = new Date(2026, 8, 21, 12, 31, 0).getTime();
 
 function renderAt(path: string) {
