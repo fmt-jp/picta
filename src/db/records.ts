@@ -13,7 +13,7 @@ export interface NewRecordInput {
   location?: GeoPoint | null;
 }
 
-/** Newest first — the order every list in Picta uses. */
+/** Newest first — the order every list in Torikoto uses. */
 function byCapturedAtDesc(a: Record, b: Record): number {
   return b.capturedAt - a.capturedAt || b.createdAt - a.createdAt;
 }

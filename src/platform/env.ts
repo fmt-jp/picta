@@ -1,7 +1,7 @@
 /**
  * Runtime capability detection.
  *
- * Picta ships one web build that also runs inside the Capacitor WebView on iOS
+ * Torikoto ships one web build that also runs inside the Capacitor WebView on iOS
  * and Android, so every platform-specific decision is made here at runtime
  * instead of at build time.
  */

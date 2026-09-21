@@ -7,11 +7,11 @@ import { setPendingCapture } from '../capture/pendingCapture';
 import { requestLocation } from '../capture/geolocation';
 import { readExif } from '../capture/exif';
 import { loadSettings } from '../settings';
-import PictaMark from '../ui/PictaMark';
+import AppMark from '../ui/AppMark';
 import type { GeoPoint } from '../types';
 
 /**
- * Home screen. Launching Picta means the viewfinder is already live — there is
+ * Home screen. Launching Torikoto means the viewfinder is already live — there is
  * no dashboard in front of it.
  */
 export default function CameraScreen() {
@@ -109,8 +109,8 @@ export default function CameraScreen() {
           ☰
         </button>
         <span className="camera-wordmark">
-          <PictaMark />
-          Picta
+          <AppMark />
+          トリコト
         </span>
         {camera.canSwitch && camera.status === 'ready' ? (
           <button

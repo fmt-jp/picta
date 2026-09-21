@@ -91,7 +91,7 @@ try {
   await page.waitForSelector('video', { state: 'visible', timeout: 20_000 });
   await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
   check('カメラがすぐに表示される', await page.getByRole('button', { name: '撮影' }).isEnabled());
-  check('上部にPictaのアイコンと文字が出る', await page.locator('.camera-wordmark svg').isVisible());
+  check('上部にトリコトのアイコンと文字が出る', await page.locator('.camera-wordmark svg').isVisible());
   const frame = await page.locator('.camera-frame').boundingBox();
   check(
     'ビューファインダーが1:1',
@@ -109,7 +109,7 @@ try {
   await page.getByRole('button', { name: '撮影' }).click();
   await page.getByLabel('メモ（任意）').waitFor();
   check(
-    '撮影後画面のヘッダーにもPictaが出る',
+    '撮影後画面のヘッダーにもトリコトが出る',
     await page.locator('.header .camera-wordmark svg').isVisible(),
   );
   await page.getByRole('button', { name: '破棄' }).click();
@@ -122,6 +122,7 @@ try {
   const shot = await page.evaluate(
     () =>
       new Promise((resolve) => {
+        // The store name intentionally keeps the app's former name.
         const request = indexedDB.open('picta');
         request.onsuccess = () => {
           const rows = request.result.transaction('photos').objectStore('photos').getAll();
@@ -139,6 +140,7 @@ try {
   const stored = await page.evaluate(
     () =>
       new Promise((resolve) => {
+        // The store name intentionally keeps the app's former name.
         const request = indexedDB.open('picta');
         request.onsuccess = () => {
           const rows = request.result.transaction(['records', 'photos']);
@@ -221,7 +223,7 @@ try {
   check('ZIPにmanifest/CSV/写真が入る', names.length === 4 && names[0] === 'manifest.json', names.join(', '));
   check(
     'manifestにformatとversionがある',
-    JSON.parse(strFromU8(entries['manifest.json'])).format === 'picta-export',
+    JSON.parse(strFromU8(entries['manifest.json'])).format === 'torikoto-export',
   );
   const csvBytes = entries['records.csv'];
   check('CSVがBOM付きUTF-8', csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf);

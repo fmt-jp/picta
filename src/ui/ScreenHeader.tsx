@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PictaMark from './PictaMark';
+import AppMark from './AppMark';
 
 interface Props {
   title: string;
@@ -9,7 +9,7 @@ interface Props {
   /** Called by the menu button; omit together with `back` for a bare header. */
   onMenu?: () => void;
   /**
-   * Show the Picta lockup in place of the title, matching the camera screen.
+   * Show the app lockup in place of the title, matching the camera screen.
    * `title` stays as the heading for screen readers.
    */
   brand?: boolean;
@@ -39,8 +39,8 @@ export default function ScreenHeader({ title, back, onMenu, brand, actions }: Pr
         <>
           <h1 className="sr-only">{title}</h1>
           <span className="camera-wordmark" aria-hidden="true">
-            <PictaMark />
-            Picta
+            <AppMark />
+            トリコト
           </span>
         </>
       ) : (

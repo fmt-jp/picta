@@ -1,6 +1,9 @@
-# Picta 開発ログ
+# トリコト / Torikoto 開発ログ
 
 各Phaseの「実装 → テスト → 動作確認 → 問題点 → 次Phaseへの引き継ぎ」を記録する。
+
+> Phase 1 以降の記録は、アプリ名が「Picta」だった当時のものをそのまま残している。
+> 改名の経緯は末尾の「アプリ名を変更」を参照。
 
 ---
 
@@ -474,3 +477,41 @@ GPS: 35.68123611111111 139.76712500000002
 - E2E：グリッドが枠にぴったり重なること、
   グリッド越しでもシャッターが押せること
 - 単体・画面テスト 113件成功 / E2E 28項目成功
+
+---
+
+## v1.0後の変更: アプリ名を「トリコト / Torikoto」に変更
+
+### 方針
+
+| 用途 | 表記 |
+| --- | --- |
+| 画面表示・PWA名・ネイティブアプリ名 | トリコト |
+| ファイル名・識別子（ASCIIが必要な場所） | Torikoto / torikoto |
+
+### 変更したもの
+
+- 画面のロックアップ（カメラ画面・撮影後画面）、メニュー見出し、設定のバージョン表示
+- `index.html` のタイトルとiOSのホーム画面名、PWA manifest の `name` / `short_name`
+- Capacitor の `appName`（トリコト）と `appId`（`com.picta.app` → `com.torikoto.app`）
+- `package.json` の `name`（`torikoto`）と説明
+- エクスポートのファイル名（`Torikoto_Export_YYYYMMDD`）
+- ZIPの `manifest.json` の `format`（`picta-export` → `torikoto-export`）と `app`
+  - 旧名のアーカイブも読めるよう `LEGACY_EXPORT_FORMAT` を定義。
+    中身は同一なので、将来のインポートは両方を受け付ける
+- コード内の識別子：`PictaMark` → `AppMark`、`PictaSchema`/`PictaDB` → `AppSchema`/`AppDB`
+  （中立な名前にして、次に改名しても表示文字列だけで済むようにした）
+
+### 意図的に変更していないもの
+
+- **IndexedDBの名前 `picta`**
+- **設定の保存キー `picta.settings.v1`**
+
+どちらも利用者に見えない内部識別子で、変更すると既に端末に保存されている
+記録と設定が参照されなくなる。改名のために利用者のデータを失わせる理由はないため、
+コメントで理由を明記したうえで据え置いた。
+
+### テスト
+
+- 単体・画面テスト 113件成功 / E2E 28項目成功
+- 表示名・エクスポートのファイル名・manifestの `format` を新名で検証

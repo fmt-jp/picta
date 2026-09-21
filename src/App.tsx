@@ -21,7 +21,7 @@ export default function App() {
     <MenuContext.Provider value={openMenu}>
       <div className="app">
         <Routes>
-          {/* The camera is the home screen — launching Picta means shooting. */}
+          {/* The camera is the home screen — launching Torikoto means shooting. */}
           <Route path="/" element={<CameraScreen />} />
           <Route path="/review" element={<ReviewScreen />} />
           <Route path="/records" element={<RecordsScreen />} />

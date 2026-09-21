@@ -1,8 +1,8 @@
 {
-  "name": "picta",
+  "name": "torikoto",
   "version": "1.0.0",
   "private": true,
-  "description": "Picta - 撮影したついでに、一言残す軽量記録アプリ",
+  "description": "トリコト / Torikoto - 撮影したついでに、一言残す軽量記録アプリ",
   "type": "module",
   "scripts": {
     "dev": "vite",

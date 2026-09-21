@@ -19,7 +19,7 @@ export interface Tag {
 }
 
 /**
- * One Picta record: a photo plus the optional one-liner that was added to it.
+ * One Torikoto record: a photo plus the optional one-liner that was added to it.
  *
  * The photo bytes are NOT stored here. `photoId` points at the blob store so
  * that listing records never has to pull megabytes of image data into memory.

@@ -31,7 +31,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
     <>
       <button className="menu-backdrop" aria-label="メニューを閉じる" onClick={onClose} />
       <nav className="menu-panel" aria-label="メインメニュー">
-        <div className="menu-title">Picta</div>
+        <div className="menu-title">トリコト</div>
         {ITEMS.map((item) => (
           <NavLink
             key={item.to}

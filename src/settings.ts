@@ -4,6 +4,7 @@
  * localStorage is fine here — these are a few bytes of scalar settings, never
  * photos or records (those live in IndexedDB / the filesystem).
  */
+/** Kept from the app's former name so existing settings are not orphaned. */
 const KEY = 'picta.settings.v1';
 
 export interface Settings {

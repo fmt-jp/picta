@@ -7,7 +7,7 @@ import { loadPhotoBlob } from '../db/photoStore';
 /**
  * Backup ZIP (spec §19, §24):
  *
- *   Picta_Export_20260921.zip
+ *   Torikoto_Export_20260921.zip
  *   ├── manifest.json   format + version, so imports can stay compatible
  *   ├── records.csv     the same CSV as the plain export
  *   └── photos/…        one file per record, named as in records.csv

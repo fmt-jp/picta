@@ -7,9 +7,9 @@ import type { GeoPoint } from '../types';
  * or the photo library): those carry a real DateTimeOriginal and, often, GPS.
  *
  * Writing matters because a `canvas.toBlob()` capture has no metadata at all.
- * Without this, the copy Picta saves to the device photo library would show up
+ * Without this, the copy Torikoto saves to the device photo library would show up
  * with the import time and no place, and an exported photo would lose both.
- * Only the handful of tags Picta actually knows are written.
+ * Only the handful of tags Torikoto actually knows are written.
  */
 
 const TAG = {
@@ -143,7 +143,7 @@ function toDegrees(parts: number[] | string | undefined, ref: string | undefined
   return negative ? -value : value;
 }
 
-/** Reads the tags Picta cares about. Returns {} for anything it cannot parse. */
+/** Reads the tags Torikoto cares about. Returns {} for anything it cannot parse. */
 export function parseExifBytes(bytes: Uint8Array): ExifData {
   try {
     const base = findApp1(bytes);

@@ -4,7 +4,7 @@ import { blobToBase64 } from './base64';
 /**
  * Saving a copy of the capture to the *device* photo library.
  *
- * This copy is independent of the one Picta keeps: deleting a Picta record
+ * This copy is independent of the one Torikoto keeps: deleting a Torikoto record
  * never touches it, and deleting it from the photo library never affects the
  * record (spec §9.2, §14).
  *

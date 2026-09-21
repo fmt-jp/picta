@@ -82,8 +82,8 @@ export function buildCsv(rows: ExportRow[], withBom = true): string {
   return (withBom ? BOM : '') + lines.join('\r\n') + '\r\n';
 }
 
-/** Picta_Export_20260921 */
+/** Torikoto_Export_20260921 */
 export function exportBaseName(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
-  return `Picta_Export_${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`;
+  return `Torikoto_Export_${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`;
 }

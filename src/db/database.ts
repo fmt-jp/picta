@@ -20,14 +20,14 @@ export interface PhotoRow {
   /**
    * Web builds: the JPEG bytes. Stored as an ArrayBuffer rather than a Blob —
    * older Safari versions lose Blob values kept in IndexedDB, and iOS Safari is
-   * one of Picta's targets.
+   * one of Torikoto's targets.
    */
   bytes?: ArrayBuffer;
   /** Native builds: path relative to the app data directory. */
   path?: string;
 }
 
-interface PictaSchema extends DBSchema {
+interface AppSchema extends DBSchema {
   records: {
     key: string;
     value: Record;
@@ -44,6 +44,11 @@ interface PictaSchema extends DBSchema {
   };
 }
 
+/**
+ * The store name predates the rename to トリコト. It stays as it is: it is an
+ * internal identifier, and changing it would orphan every record already saved
+ * on someone's device.
+ */
 export const DB_NAME = 'picta';
 export const DB_VERSION = 1;
 
@@ -60,13 +65,13 @@ export const DEFAULT_TAGS = [
   '確認',
 ];
 
-export type PictaDB = IDBPDatabase<PictaSchema>;
+export type AppDB = IDBPDatabase<AppSchema>;
 
-let dbPromise: Promise<PictaDB> | null = null;
+let dbPromise: Promise<AppDB> | null = null;
 
-export function getDb(): Promise<PictaDB> {
+export function getDb(): Promise<AppDB> {
   if (!dbPromise) {
-    dbPromise = openDB<PictaSchema>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<AppSchema>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion, _newVersion, tx) {
         if (oldVersion < 1) {
           const records = db.createObjectStore('records', { keyPath: 'id' });
@@ -84,7 +89,7 @@ export function getDb(): Promise<PictaDB> {
         }
       },
       blocked() {
-        console.warn('Picta: 別のタブがデータベースを使用中です。');
+        console.warn('トリコト: 別のタブがデータベースを使用中です。');
       },
     });
   }

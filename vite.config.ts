@@ -16,8 +16,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
       manifest: {
-        name: 'Picta',
-        short_name: 'Picta',
+        name: 'トリコト',
+        short_name: 'トリコト',
         description: '写真を撮ったついでに、一言残す。',
         lang: 'ja',
         theme_color: '#111113',

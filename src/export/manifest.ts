@@ -1,15 +1,20 @@
 import { CSV_COLUMNS } from './csv';
 
 /**
- * Written to the root of every ZIP export so a future Picta (or any other
+ * Written to the root of every ZIP export so a future Torikoto (or any other
  * tool) can tell what it is looking at and stay backward compatible (spec §24).
  */
-export const EXPORT_FORMAT = 'picta-export';
+export const EXPORT_FORMAT = 'torikoto-export';
+/**
+ * What versions 1 and 2 were written as, before the app was renamed. A future
+ * importer must accept it — those archives are otherwise identical.
+ */
+export const LEGACY_EXPORT_FORMAT = 'picta-export';
 /** 2 added the latitude/longitude columns to records.csv. */
 export const EXPORT_VERSION = 2;
 
 export interface ExportManifest {
-  format: typeof EXPORT_FORMAT;
+  format: typeof EXPORT_FORMAT | typeof LEGACY_EXPORT_FORMAT;
   version: number;
   app: string;
   exportedAt: string;
@@ -29,7 +34,7 @@ export function buildManifest(recordCount: number, now = new Date()): ExportMani
   return {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
-    app: 'Picta 1.0',
+    app: 'Torikoto 1.0',
     exportedAt: now.toISOString(),
     recordCount,
     timezoneOffsetMinutes: -now.getTimezoneOffset(),

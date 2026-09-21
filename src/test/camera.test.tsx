@@ -57,9 +57,9 @@ describe('カメラ画面', () => {
     expect(screen.getByRole('button', { name: 'メニューを開く' })).toBeEnabled();
   });
 
-  it('上部にPictaのアイコンと文字を表示する', () => {
+  it('上部にトリコトのアイコンと文字を表示する', () => {
     const { container } = renderCamera();
-    expect(screen.getByText('Picta')).toBeInTheDocument();
+    expect(screen.getByText('トリコト')).toBeInTheDocument();
     expect(container.querySelector('.camera-wordmark svg')).toBeInTheDocument();
   });
 

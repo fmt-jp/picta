@@ -88,7 +88,7 @@ export default function SettingsScreen() {
         <section className="section">
           <h2 className="field-label">アプリ情報</h2>
           <div className="card">
-            <p style={{ margin: 0 }}>Picta v1.0 / {platformName()}</p>
+            <p style={{ margin: 0 }}>トリコト v1.0 / {platformName()}</p>
             <p className="hint">写真を撮ったついでに、一言残す。</p>
           </div>
         </section>

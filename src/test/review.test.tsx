@@ -54,11 +54,11 @@ beforeEach(async () => {
 });
 
 describe('撮影後画面', () => {
-  it('ヘッダーにPictaのアイコンと文字が出る（見出しは読み上げ用に残す）', () => {
+  it('ヘッダーにトリコトのアイコンと文字が出る（見出しは読み上げ用に残す）', () => {
     const { container } = renderReview();
     const header = container.querySelector('.header');
     expect(header?.querySelector('.camera-wordmark svg')).toBeInTheDocument();
-    expect(header).toHaveTextContent('Picta');
+    expect(header).toHaveTextContent('トリコト');
     expect(screen.getByRole('heading', { name: '記録する' })).toBeInTheDocument();
   });
 

@@ -1,11 +1,11 @@
 /**
  * Photo encoding helpers.
  *
- * Picta records are square (1:1). The viewfinder shows a square crop of the
+ * Torikoto records are square (1:1). The viewfinder shows a square crop of the
  * camera stream and the saved photo is exactly that crop, so what you framed
  * is what you get.
  *
- * Photos are the bulk of Picta's storage, so captures are capped at a sane
+ * Photos are the bulk of Torikoto's storage, so captures are capped at a sane
  * long-edge size before they ever reach the database. 2048px keeps a photo
  * sharp on any phone screen and in a printed export while keeping a typical
  * capture in the 300KB–800KB range.

@@ -113,7 +113,7 @@ export default function ExportScreen() {
           <div className="card">
             <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-dim)' }}>
               写真・メモ・タグ・撮影日時をまとめて書き出します。
-              将来のPictaに読み込んで復元できる形式です。
+              将来のトリコトに読み込んで復元できる形式です。
             </p>
             <button
               className="button primary block"

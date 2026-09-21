@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.picta.app',
-  appName: 'Picta',
+  appId: 'com.torikoto.app',
+  appName: 'トリコト',
   webDir: 'dist',
   // The native shells load the same built web app; only the platform adapters
   // under src/platform differ at runtime.

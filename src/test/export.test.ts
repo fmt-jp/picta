@@ -84,15 +84,15 @@ describe('CSV', () => {
     expect(formatCapturedAt(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe('2026-01-02T03:04:05');
   });
 
-  it('ファイル名は Picta_Export_YYYYMMDD 形式', () => {
-    expect(exportBaseName(new Date(2026, 8, 21))).toBe('Picta_Export_20260921');
+  it('ファイル名は Torikoto_Export_YYYYMMDD 形式', () => {
+    expect(exportBaseName(new Date(2026, 8, 21))).toBe('Torikoto_Export_20260921');
   });
 });
 
 describe('manifest', () => {
   it('形式とバージョンを持つ', () => {
     const manifest = buildManifest(3, new Date(T));
-    expect(manifest.format).toBe('picta-export');
+    expect(manifest.format).toBe('torikoto-export');
     expect(manifest.version).toBe(2);
     expect(manifest.recordCount).toBe(3);
     expect(manifest.csv.columns).toEqual([
@@ -137,7 +137,7 @@ describe('ZIPエクスポート', () => {
       'photos/20260921_123100.jpg',
       'records.csv',
     ]);
-    expect(JSON.parse(strFromU8(files['manifest.json'])).format).toBe('picta-export');
+    expect(JSON.parse(strFromU8(files['manifest.json'])).format).toBe('torikoto-export');
   });
 
   it('CSVの photoFileName と photos/ の中身が対応する', async () => {

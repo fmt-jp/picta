@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Adds Picta's permission strings to the generated native projects.
+ * Adds the app's permission strings to the generated native projects.
  *
  * Capacitor creates ios/ and android/ from a template, so these edits have to
  * be applied once after `npx cap add ios` / `npx cap add android`. Running this

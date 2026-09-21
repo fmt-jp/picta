@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Picta — the photo is the subject, the chrome stays out of the way.
+   Torikoto — the photo is the subject, the chrome stays out of the way.
    Dark only: the camera viewfinder fills the screen and a light UI around it
    would fight the preview.
    --------------------------------------------------------------------------- */
@@ -408,7 +408,7 @@ textarea {
 
 /* --- camera -------------------------------------------------------------- */
 
-/* Header · square viewfinder · shutter. The photo Picta saves is exactly the
+/* Header · square viewfinder · shutter. The photo Torikoto saves is exactly the
    1:1 frame shown here, so the preview is never wider than the capture. */
 
 .camera-screen {

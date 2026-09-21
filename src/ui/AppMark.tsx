@@ -1,5 +1,5 @@
-/** The Picta lens mark, matching the app icon. */
-export default function PictaMark({ size = 22 }: { size?: number }) {
+/** The app's lens mark, matching the icon. */
+export default function AppMark({ size = 22 }: { size?: number }) {
   return (
     <svg
       width={size}

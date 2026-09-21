@@ -6,7 +6,7 @@ import type { GeoPoint } from '../types';
  * A canvas capture carries no EXIF at all, so the coordinates have to come
  * from the Geolocation API. The permission is requested the first time a photo
  * is taken with location recording on — never at start-up — and a refusal is
- * remembered by the browser, so Picta does not ask again by itself.
+ * remembered by the browser, so Torikoto does not ask again by itself.
  */
 const TIMEOUT_MS = 10_000;
 /** A fix from the last minute is close enough for "where was this taken". */
