@@ -89,10 +89,34 @@ try {
   await page.waitForSelector('video', { state: 'visible', timeout: 20_000 });
   await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
   check('カメラがすぐに表示される', await page.getByRole('button', { name: '撮影' }).isEnabled());
+  check('上部にPictaのアイコンと文字が出る', await page.locator('.camera-wordmark svg').isVisible());
+  const frame = await page.locator('.camera-frame').boundingBox();
+  check(
+    'ビューファインダーが1:1',
+    Math.abs(frame.width - frame.height) <= 1,
+    `${frame.width}x${frame.height}`,
+  );
 
   console.log('撮影と保存');
   await shoot('この店また来たい', ['旅行', 'グルメ']);
   await shoot('ここから見ると綺麗', ['旅行']);
+
+  const shot = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const rows = request.result.transaction('photos').objectStore('photos').getAll();
+          rows.onsuccess = () => {
+            const row = rows.result[0];
+            const img = new Image();
+            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            img.src = URL.createObjectURL(new Blob([row.bytes], { type: row.mimeType }));
+          };
+        };
+      }),
+  );
+  check('保存された写真も1:1', shot.w === shot.h, `${shot.w}x${shot.h}`);
 
   console.log('過去の記録');
   await page.goto(`${BASE}/#/records`, { waitUntil: 'networkidle' });

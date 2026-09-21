@@ -56,4 +56,15 @@ describe('カメラ画面', () => {
     renderCamera();
     expect(screen.getByRole('button', { name: 'メニューを開く' })).toBeEnabled();
   });
+
+  it('上部にPictaのアイコンと文字を表示する', () => {
+    const { container } = renderCamera();
+    expect(screen.getByText('Picta')).toBeInTheDocument();
+    expect(container.querySelector('.camera-wordmark svg')).toBeInTheDocument();
+  });
+
+  it('ビューファインダーは1:1の枠に収まる', () => {
+    const { container } = renderCamera();
+    expect(container.querySelector('.camera-frame')).toBeInTheDocument();
+  });
 });

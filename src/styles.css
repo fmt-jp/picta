@@ -397,15 +397,59 @@ textarea {
 
 /* --- camera -------------------------------------------------------------- */
 
-.camera {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+/* Header · square viewfinder · shutter. The photo Picta saves is exactly the
+   1:1 frame shown here, so the preview is never wider than the capture. */
+
+.camera-screen {
   background: #000;
-  overflow: hidden;
 }
 
-.camera video {
+.camera-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(10px + var(--safe-top)) calc(12px + var(--safe-right)) 10px
+    calc(12px + var(--safe-left));
+}
+
+.camera-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.camera-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* The frame sits just under the wordmark; the slack goes below it, next to
+     the shutter, the way a phone's square camera mode is laid out. */
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 4px var(--safe-right) 0 var(--safe-left);
+}
+
+.camera-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  /* Never taller than the space available, so the shutter stays reachable. */
+  max-height: 100%;
+  max-width: min(100%, calc(100vh - 260px));
+  overflow: hidden;
+  background: #0a0a0c;
+}
+
+.camera-frame video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -414,56 +458,45 @@ textarea {
   background: #000;
 }
 
-.camera video.mirrored {
+.camera-frame video.mirrored {
   transform: scaleX(-1);
 }
 
-.camera-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) 8px
-    calc(8px + var(--safe-left));
-  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
-}
-
 .camera-round {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.42);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-size: 19px;
+  font-size: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
+}
+
+.camera-round.placeholder {
+  background: transparent;
+  pointer-events: none;
 }
 
 .camera-bottom {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 22px 24px calc(28px + var(--safe-bottom));
-  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.55));
+  min-height: 132px;
+  padding: 18px 24px calc(22px + var(--safe-bottom));
 }
 
 .shutter {
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  border: 4px solid rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.95);
+  border: 4px solid rgba(255, 255, 255, 0.35);
+  background: #fff;
   padding: 0;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);
 }
 
 .shutter:active {
@@ -483,13 +516,21 @@ textarea {
   justify-content: center;
   gap: 14px;
   text-align: center;
-  padding: 32px calc(24px + var(--safe-right)) 32px calc(24px + var(--safe-left));
+  padding: 24px;
   color: var(--text-dim);
 }
 
 .camera-message strong {
   color: var(--text);
   font-size: 17px;
+}
+
+.camera-error {
+  margin: 0;
+  padding: 0 20px;
+  font-size: 14px;
+  color: #ffc9c9;
+  text-align: center;
 }
 
 .flash {
@@ -735,7 +776,7 @@ textarea {
 .toast {
   position: absolute;
   left: 50%;
-  bottom: calc(132px + var(--safe-bottom));
+  bottom: 16px;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.72);
   color: #fff;

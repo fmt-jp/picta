@@ -57,8 +57,11 @@ export function useCamera(): CameraController {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facing },
+            // Ask for the usual 4:3 sensor output rather than a square: the
+            // square crop is taken from the short edge, and 4:3 leaves more
+            // pixels there than 16:9 does.
             width: { ideal: 1920 },
-            height: { ideal: 1920 },
+            height: { ideal: 1440 },
           },
           audio: false,
         });
@@ -125,9 +128,11 @@ export function useCamera(): CameraController {
     if (!video || !video.videoWidth || !video.videoHeight) {
       throw new Error('カメラの準備ができていません');
     }
-    // The front camera preview is mirrored, so mirror the saved frame too —
-    // the photo should look like what was on screen.
-    return encodeFrame(video, video.videoWidth, video.videoHeight, facing === 'user');
+    // Square, and mirrored for the front camera: exactly the frame the
+    // viewfinder was showing.
+    return encodeFrame(video, video.videoWidth, video.videoHeight, {
+      mirror: facing === 'user',
+    });
   }, [facing]);
 
   return { videoRef, status, message, facing, canSwitch, switchFacing, retry, capture };

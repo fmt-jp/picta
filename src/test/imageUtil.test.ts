@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_EDGE, fitWithin, photoStamp } from '../capture/imageUtil';
+import { MAX_EDGE, centeredSquareCrop, fitWithin, photoStamp } from '../capture/imageUtil';
 
 describe('fitWithin', () => {
   it('小さい画像は拡大しない', () => {
@@ -20,6 +20,26 @@ describe('fitWithin', () => {
 
   it('0サイズでも壊れない', () => {
     expect(fitWithin(0, 0)).toEqual({ width: 0, height: 0 });
+  });
+});
+
+describe('centeredSquareCrop', () => {
+  it('横長フレームから中央の正方形を切り出す', () => {
+    expect(centeredSquareCrop(1920, 1080)).toEqual({ sx: 420, sy: 0, sw: 1080, sh: 1080 });
+  });
+
+  it('縦長フレームでも中央を切り出す', () => {
+    expect(centeredSquareCrop(1080, 1920)).toEqual({ sx: 0, sy: 420, sw: 1080, sh: 1080 });
+  });
+
+  it('すでに正方形なら切り出さない', () => {
+    expect(centeredSquareCrop(1440, 1440)).toEqual({ sx: 0, sy: 0, sw: 1440, sh: 1440 });
+  });
+
+  it('切り出した正方形は長辺上限までしか縮まない', () => {
+    const crop = centeredSquareCrop(4032, 3024);
+    const fitted = fitWithin(crop.sw, crop.sh);
+    expect(fitted).toEqual({ width: MAX_EDGE, height: MAX_EDGE });
   });
 });
 

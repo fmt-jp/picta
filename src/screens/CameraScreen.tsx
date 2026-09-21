@@ -4,6 +4,7 @@ import { useMenu } from '../ui/menuContext';
 import { useCamera } from '../capture/useCamera';
 import { encodeImageFile, type EncodedPhoto } from '../capture/imageUtil';
 import { setPendingCapture } from '../capture/pendingCapture';
+import PictaMark from '../ui/PictaMark';
 
 /**
  * Home screen. Launching Picta means the viewfinder is already live — there is
@@ -85,60 +86,69 @@ export default function CameraScreen() {
   const blocked = camera.status === 'denied' || camera.status === 'unavailable' || camera.status === 'error';
 
   return (
-    <div className="screen">
-      <div className="camera">
-        <video
-          ref={camera.videoRef}
-          className={camera.facing === 'user' ? 'mirrored' : undefined}
-          playsInline
-          muted
-          autoPlay
-          aria-label="カメラ映像"
-          style={{ display: camera.status === 'ready' ? 'block' : 'none' }}
-        />
-
-        {flash ? <div className="flash" aria-hidden="true" /> : null}
-
-        <div className="camera-top">
-          <button className="camera-round" onClick={openMenu} aria-label="メニューを開く">
-            ☰
+    <div className="screen camera-screen">
+      <header className="camera-header">
+        <button className="camera-round" onClick={openMenu} aria-label="メニューを開く">
+          ☰
+        </button>
+        <span className="camera-wordmark">
+          <PictaMark />
+          Picta
+        </span>
+        {camera.canSwitch && camera.status === 'ready' ? (
+          <button
+            className="camera-round"
+            onClick={camera.switchFacing}
+            aria-label="カメラを切り替え"
+          >
+            ⇆
           </button>
-          {camera.canSwitch && camera.status === 'ready' ? (
-            <button
-              className="camera-round"
-              onClick={camera.switchFacing}
-              aria-label="カメラを切り替え"
-            >
-              ⇆
-            </button>
+        ) : (
+          <span className="camera-round placeholder" aria-hidden="true" />
+        )}
+      </header>
+
+      <div className="camera-stage">
+        {/* Square viewfinder: the saved photo is exactly this 1:1 frame. */}
+        <div className="camera-frame">
+          <video
+            ref={camera.videoRef}
+            className={camera.facing === 'user' ? 'mirrored' : undefined}
+            playsInline
+            muted
+            autoPlay
+            aria-label="カメラ映像"
+            style={{ display: camera.status === 'ready' ? 'block' : 'none' }}
+          />
+
+          {flash ? <div className="flash" aria-hidden="true" /> : null}
+
+          {camera.status === 'starting' ? (
+            <div className="camera-message">
+              <span>カメラを起動しています…</span>
+            </div>
+          ) : null}
+
+          {blocked ? (
+            <div className="camera-message">
+              <strong>カメラを使えません</strong>
+              <span>{camera.message}</span>
+              <div className="button-row" style={{ width: '100%', maxWidth: 300 }}>
+                <button className="button" onClick={camera.retry}>
+                  再試行
+                </button>
+                <button className="button primary" onClick={() => fileInputRef.current?.click()}>
+                  写真を選ぶ
+                </button>
+              </div>
+            </div>
           ) : null}
         </div>
 
-        {camera.status === 'starting' ? (
-          <div className="camera-message">
-            <span>カメラを起動しています…</span>
-          </div>
-        ) : null}
-
-        {blocked ? (
-          <div className="camera-message">
-            <strong>カメラを使えません</strong>
-            <span>{camera.message}</span>
-            <div className="button-row" style={{ width: '100%', maxWidth: 320 }}>
-              <button className="button" onClick={camera.retry}>
-                再試行
-              </button>
-              <button className="button primary" onClick={() => fileInputRef.current?.click()}>
-                写真を選ぶ
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         {error ? (
-          <div className="camera-message" role="alert" style={{ justifyContent: 'flex-start', paddingTop: 96 }}>
-            <span>{error}</span>
-          </div>
+          <p className="camera-error" role="alert">
+            {error}
+          </p>
         ) : null}
 
         {savedToast ? (
@@ -146,30 +156,30 @@ export default function CameraScreen() {
             {savedToast}
           </div>
         ) : null}
-
-        {live ? (
-          <div className="camera-bottom">
-            <button
-              className="shutter"
-              onClick={onShutter}
-              aria-label="撮影"
-              disabled={camera.status !== 'ready' || busy}
-            />
-          </div>
-        ) : null}
-
-        {/* Fallback for browsers without getUserMedia (some iOS PWA contexts)
-            and for insecure origins: the OS camera / picker still works. */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="sr-only"
-          aria-label="写真を選ぶ"
-          onChange={onPickFile}
-        />
       </div>
+
+      <div className="camera-bottom">
+        {live ? (
+          <button
+            className="shutter"
+            onClick={onShutter}
+            aria-label="撮影"
+            disabled={camera.status !== 'ready' || busy}
+          />
+        ) : null}
+      </div>
+
+      {/* Fallback for browsers without getUserMedia (some iOS PWA contexts)
+          and for insecure origins: the OS camera / picker still works. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="写真を選ぶ"
+        onChange={onPickFile}
+      />
     </div>
   );
 }
