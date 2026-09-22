@@ -10,6 +10,15 @@ export interface GeoPoint {
   source: 'device' | 'exif';
 }
 
+/**
+ * Where the copy Torikoto saved to the device photo library ended up.
+ * iOS stores a PHAsset identifier, Android the file path it was written to.
+ */
+export interface LibraryPhotoRef {
+  platform: 'ios' | 'android';
+  id: string;
+}
+
 /** A stored tag. `name` is unique (case-sensitive, trimmed). */
 export interface Tag {
   id: string;
@@ -36,6 +45,8 @@ export interface Record {
   capturedAt: number;
   /** Where the photo was taken, when a fix was available and allowed. */
   location?: GeoPoint;
+  /** The copy in the device photo library, when one was saved and located. */
+  libraryPhoto?: LibraryPhotoRef;
   /** ms epoch — when the record was written to storage. */
   createdAt: number;
   /** ms epoch — last edit of memo/tags. */

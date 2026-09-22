@@ -103,7 +103,7 @@ describe('記録詳細', () => {
     );
   });
 
-  it('削除は確認してから実行し、フォトライブラリには触れないと明示する', async () => {
+  it('削除は確認のうえ、アプリ内だけか端末の写真もかを選ばせる', async () => {
     const user = userEvent.setup();
     const record = await seed();
     renderAt(`/records/${record.id}`);
@@ -111,10 +111,15 @@ describe('記録詳細', () => {
     await user.click(await screen.findByRole('button', { name: 'この記録を削除' }));
     const dialog = screen.getByRole('dialog');
     expect(
-      within(dialog).getByText('端末のフォトライブラリに保存した写真は削除されません。'),
+      within(dialog).getByRole('button', { name: /アプリ内から削除/ }),
     ).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: '削除する' }));
+    // Webでは端末の写真を消せないので、理由を出したうえで選べなくする
+    const withDevice = within(dialog).getByRole('button', { name: /アプリ内と端末の写真を削除/ });
+    expect(withDevice).toBeDisabled();
+    expect(withDevice).toHaveTextContent('ブラウザからは端末に保存した写真を削除できません');
+
+    await user.click(within(dialog).getByRole('button', { name: /アプリ内から削除/ }));
     await waitFor(async () => expect(await getRecord(record.id)).toBeUndefined());
     expect(await listRecords()).toHaveLength(2);
   });
@@ -209,7 +214,7 @@ describe('複数選択して削除', () => {
     expect(screen.getByRole('button', { name: '削除する記録を選んでください' })).toBeDisabled();
   });
 
-  it('削除前に確認画面で2つの選択肢を出す', async () => {
+  it('削除前に確認画面で3つの選択肢を出す', async () => {
     const user = userEvent.setup();
     await seed();
     await enterSelection(user);
@@ -220,11 +225,12 @@ describe('複数選択して削除', () => {
 
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: '2件をどう削除しますか？' })).toBeInTheDocument();
-    expect(
-      within(dialog).getByText('端末のフォトライブラリに保存した写真は削除されません。'),
-    ).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /メモだけ削除/ })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /メモと写真を削除/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /メモだけ削除/ })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: /アプリ内から削除/ })).toBeEnabled();
+    // Webでは端末の写真を消せない
+    const withDevice = within(dialog).getByRole('button', { name: /アプリ内と端末の写真を削除/ });
+    expect(withDevice).toBeDisabled();
+    expect(withDevice).toHaveTextContent('ブラウザからは端末に保存した写真を削除できません');
   });
 
   it('「メモだけ削除」は写真とタグを残してメモだけ消す', async () => {
@@ -243,7 +249,7 @@ describe('複数選択して削除', () => {
     expect(await listRecords()).toHaveLength(3);
   });
 
-  it('「メモと写真を削除」は記録ごと消す', async () => {
+  it('「アプリ内から削除」は記録ごと消す（端末の写真は残る）', async () => {
     const user = userEvent.setup();
     const newest = await seed();
     await enterSelection(user);
@@ -251,7 +257,7 @@ describe('複数選択して削除', () => {
     await user.click(screen.getAllByRole('checkbox')[0]);
     await user.click(screen.getAllByRole('checkbox')[1]);
     await user.click(screen.getByRole('button', { name: '2件を削除' }));
-    await user.click(screen.getByRole('button', { name: /メモと写真を削除/ }));
+    await user.click(screen.getByRole('button', { name: /アプリ内から削除/ }));
 
     await waitFor(async () => expect(await listRecords()).toHaveLength(1));
     expect(await getRecord(newest.id)).toBeUndefined();

@@ -7,6 +7,7 @@ import ChoiceDialog from '../ui/ChoiceDialog';
 import { useMenu } from '../ui/menuContext';
 import { clearMemos, deleteRecords, listRecords, listRecordsByTag } from '../db/records';
 import { invalidatePhotoUrl } from '../db/usePhotoUrl';
+import { canDeleteFromLibrary, libraryDeleteLimitation } from '../platform/photoLibrary';
 
 /** 過去の記録。`/tags/:name` からはそのタグの記録だけを表示する。 */
 export default function RecordsScreen() {
@@ -57,20 +58,26 @@ export default function RecordsScreen() {
   const withMemo = selectedRecords.filter((record) => record.memo).length;
 
   const run = useCallback(
-    async (action: 'memo' | 'record') => {
+    async (action: 'memo' | 'record' | 'record-and-library') => {
       if (busy) return;
       setBusy(true);
       setError('');
       const ids = selectedRecords.map((record) => record.id);
       try {
-        if (action === 'record') {
-          // Drop the cached object URLs first: those photos are about to go.
-          for (const record of selectedRecords) invalidatePhotoUrl(record.photoId);
-          const removed = await deleteRecords(ids);
-          setNotice(`${removed}件の記録を削除しました`);
-        } else {
+        if (action === 'memo') {
           const cleared = await clearMemos(ids);
           setNotice(`${cleared}件のメモを削除しました`);
+        } else {
+          // Drop the cached object URLs first: those photos are about to go.
+          for (const record of selectedRecords) invalidatePhotoUrl(record.photoId);
+          const alsoFromLibrary = action === 'record-and-library';
+          const outcome = await deleteRecords(ids, { alsoFromLibrary });
+          let message = `${outcome.removed}件の記録を削除しました`;
+          if (alsoFromLibrary) {
+            message += `（端末の写真 ${outcome.libraryDeleted}件を削除`;
+            message += outcome.libraryFailed > 0 ? `／${outcome.libraryFailed}件は削除できず）` : '）';
+          }
+          setNotice(message);
         }
         exitSelection();
         await load();
@@ -138,7 +145,6 @@ export default function RecordsScreen() {
       {confirming ? (
         <ChoiceDialog
           title={`${count}件をどう削除しますか？`}
-          message="端末のフォトライブラリに保存した写真は削除されません。"
           choices={[
             {
               label: 'メモだけ削除',
@@ -149,10 +155,19 @@ export default function RecordsScreen() {
               onSelect: () => void run('memo'),
             },
             {
-              label: 'メモと写真を削除',
-              description: '記録ごと削除します。元に戻せません',
+              label: 'アプリ内から削除',
+              description: '記録ごと削除します。端末に保存した写真は残ります',
               danger: true,
               onSelect: () => void run('record'),
+            },
+            {
+              label: 'アプリ内と端末の写真を削除',
+              description:
+                libraryDeleteLimitation() ??
+                '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
+              danger: true,
+              disabled: !canDeleteFromLibrary(),
+              onSelect: () => void run('record-and-library'),
             },
           ]}
           onCancel={() => setConfirming(false)}

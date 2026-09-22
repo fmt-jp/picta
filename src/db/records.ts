@@ -1,4 +1,5 @@
-import type { GeoPoint, Record } from '../types';
+import type { GeoPoint, LibraryPhotoRef, Record } from '../types';
+import { deletePhotoFromLibrary } from '../platform/photoLibrary';
 import { photoStamp } from '../capture/imageUtil';
 import { getDb } from './database';
 import { newId } from './ids';
@@ -12,6 +13,7 @@ export interface NewRecordInput {
   tags: string[];
   capturedAt: number;
   location?: GeoPoint | null;
+  libraryPhoto?: LibraryPhotoRef | null;
 }
 
 /** Newest first — the order every list in Torikoto uses. */
@@ -44,6 +46,7 @@ export async function createRecord(input: NewRecordInput): Promise<Record> {
     updatedAt: now,
   };
   if (input.location) record.location = input.location;
+  if (input.libraryPhoto) record.libraryPhoto = input.libraryPhoto;
 
   const db = await getDb();
   try {
@@ -109,6 +112,14 @@ export async function updateRecord(
   return next;
 }
 
+/** Notes where the device photo library copy of this record's photo lives. */
+export async function setLibraryPhoto(id: string, ref: LibraryPhotoRef): Promise<void> {
+  const db = await getDb();
+  const record = await db.get('records', id);
+  if (!record) return;
+  await db.put('records', { ...record, libraryPhoto: ref });
+}
+
 /** Rewrites the stored photo's EXIF/XMP from the record as it now stands. */
 export async function restampPhoto(record: Record): Promise<void> {
   const row = await getPhotoRow(record.photoId);
@@ -131,15 +142,48 @@ export async function restampPhoto(record: Record): Promise<void> {
 }
 
 /**
- * Deletes the record and its in-app photo.
- * The copy in the device photo library is deliberately left untouched (spec §14).
+ * How a delete treated the copy in the device photo library.
+ * `unsupported` = the platform gives no way to remove it (see photoLibrary).
  */
-export async function deleteRecord(id: string): Promise<void> {
+export interface DeleteOutcome {
+  removed: number;
+  libraryDeleted: number;
+  libraryFailed: number;
+  libraryUnsupported: boolean;
+}
+
+/**
+ * Deletes the record and its in-app photo.
+ *
+ * The copy in the device photo library is only touched when `alsoFromLibrary`
+ * is asked for — by default it is left alone, as it always has been (spec §14).
+ */
+export async function deleteRecord(
+  id: string,
+  options: { alsoFromLibrary?: boolean } = {},
+): Promise<DeleteOutcome> {
+  const outcome: DeleteOutcome = {
+    removed: 0,
+    libraryDeleted: 0,
+    libraryFailed: 0,
+    libraryUnsupported: false,
+  };
+
   const db = await getDb();
   const record = await db.get('records', id);
-  if (!record) return;
+  if (!record) return outcome;
+
+  if (options.alsoFromLibrary) {
+    const result = await deletePhotoFromLibrary(record.libraryPhoto);
+    if (result.status === 'deleted') outcome.libraryDeleted += 1;
+    else if (result.status === 'unsupported') outcome.libraryUnsupported = true;
+    else outcome.libraryFailed += 1;
+  }
+
   await db.delete('records', id);
   await deletePhoto(record.photoId);
+  outcome.removed = 1;
+  return outcome;
 }
 
 /**
@@ -147,15 +191,24 @@ export async function deleteRecord(id: string): Promise<void> {
  * left alone, exactly as a single delete leaves them (spec §14).
  * Returns how many records were actually removed.
  */
-export async function deleteRecords(ids: string[]): Promise<number> {
-  let removed = 0;
+export async function deleteRecords(
+  ids: string[],
+  options: { alsoFromLibrary?: boolean } = {},
+): Promise<DeleteOutcome> {
+  const total: DeleteOutcome = {
+    removed: 0,
+    libraryDeleted: 0,
+    libraryFailed: 0,
+    libraryUnsupported: false,
+  };
   for (const id of ids) {
-    const existed = await getRecord(id);
-    if (!existed) continue;
-    await deleteRecord(id);
-    removed += 1;
+    const outcome = await deleteRecord(id, options);
+    total.removed += outcome.removed;
+    total.libraryDeleted += outcome.libraryDeleted;
+    total.libraryFailed += outcome.libraryFailed;
+    total.libraryUnsupported ||= outcome.libraryUnsupported;
   }
-  return removed;
+  return total;
 }
 
 /**

@@ -3,6 +3,8 @@ export interface Choice {
   /** One line under the label saying what the choice actually does. */
   description?: string;
   danger?: boolean;
+  /** Shown but not selectable — the platform cannot do it. */
+  disabled?: boolean;
   onSelect: () => void;
 }
 
@@ -39,6 +41,7 @@ export default function ChoiceDialog({
             <button
               key={choice.label}
               className={choice.danger ? 'choice danger' : 'choice'}
+              disabled={choice.disabled}
               onClick={choice.onSelect}
             >
               <span className="choice-label">{choice.label}</span>

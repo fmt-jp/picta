@@ -2,12 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Record } from '../types';
 import ScreenHeader from '../ui/ScreenHeader';
-import ConfirmDialog from '../ui/ConfirmDialog';
+import ChoiceDialog from '../ui/ChoiceDialog';
 import { formatDateTime } from '../format';
 import { deleteRecord, getRecord } from '../db/records';
 import { loadPhotoBlob } from '../db/photoStore';
 import { invalidatePhotoUrl, usePhotoUrl } from '../db/usePhotoUrl';
-import { photoLibraryMode, savePhotoToLibrary } from '../platform/photoLibrary';
+import {
+  canDeleteFromLibrary,
+  libraryDeleteLimitation,
+  photoLibraryMode,
+  savePhotoToLibrary,
+} from '../platform/photoLibrary';
 import { formatCoordinates, mapUrl } from '../capture/geolocation';
 
 export default function RecordDetailScreen() {
@@ -43,12 +48,18 @@ export default function RecordDetailScreen() {
     };
   }, [record]);
 
-  const onDelete = useCallback(async () => {
-    if (!record) return;
-    await deleteRecord(record.id);
-    invalidatePhotoUrl(record.photoId);
-    navigate('/records', { replace: true });
-  }, [navigate, record]);
+  const onDelete = useCallback(
+    async (alsoFromLibrary: boolean) => {
+      if (!record) return;
+      const outcome = await deleteRecord(record.id, { alsoFromLibrary });
+      invalidatePhotoUrl(record.photoId);
+      navigate('/records', {
+        replace: true,
+        state: alsoFromLibrary && outcome.libraryFailed > 0 ? { libraryFailed: true } : null,
+      });
+    },
+    [navigate, record],
+  );
 
   const onSaveToDevice = useCallback(async () => {
     if (!record || !photoBlob) return;
@@ -165,12 +176,25 @@ export default function RecordDetailScreen() {
       </div>
 
       {confirmDelete ? (
-        <ConfirmDialog
+        <ChoiceDialog
           title="この記録を削除しますか？"
-          message="端末のフォトライブラリに保存した写真は削除されません。"
-          confirmLabel="削除する"
-          danger
-          onConfirm={() => void onDelete()}
+          choices={[
+            {
+              label: 'アプリ内から削除',
+              description: '端末に保存した写真はそのまま残ります',
+              danger: true,
+              onSelect: () => void onDelete(false),
+            },
+            {
+              label: 'アプリ内と端末の写真を削除',
+              description:
+                libraryDeleteLimitation() ??
+                '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
+              danger: true,
+              disabled: !canDeleteFromLibrary(),
+              onSelect: () => void onDelete(true),
+            },
+          ]}
           onCancel={() => setConfirmDelete(false)}
         />
       ) : null}

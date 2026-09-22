@@ -8,7 +8,7 @@ import MicMark from '../ui/MicMark';
 import { formatDateTime } from '../format';
 import { useSpeechInput } from '../capture/useSpeech';
 import { clearPendingCapture, getPendingCapture } from '../capture/pendingCapture';
-import { createRecord } from '../db/records';
+import { createRecord, setLibraryPhoto } from '../db/records';
 import { awaitLocation, formatCoordinates } from '../capture/geolocation';
 import { withExif } from '../capture/exif';
 import { savePhotoToLibrary } from '../platform/photoLibrary';
@@ -107,6 +107,9 @@ export default function ReviewScreen() {
         const result = await savePhotoToLibrary(blob, record.photoFileName);
         if (result.status === 'denied' || result.status === 'failed') {
           toast = '保存しました（端末への保存は失敗）';
+        } else if (result.ref) {
+          // Remember where the device copy went so it can be deleted later.
+          await setLibraryPhoto(record.id, result.ref);
         }
       }
 
