@@ -76,6 +76,35 @@ npm run build
 `base` は相対パスなので、サブディレクトリ配信でもそのまま動作します。
 Service Workerによりオフラインでも起動でき、記録の閲覧・検索・エクスポートが可能です。
 
+## もうひとつの公開先（fmt-jp/open）へ自動反映
+
+このアプリは [fmt-jp/open](https://github.com/fmt-jp/open) のアプリ置き場でも
+`torikoto/` として公開しています。`main` に push すると
+`.github/workflows/publish-to-open.yml` がビルドし、`open` 側の `torikoto/` を
+更新します（`open` の他のアプリや `index.html` には触れません）。
+
+### 必要な設定
+
+別リポジトリへ push するため、`GITHUB_TOKEN` では権限が足りません。
+次のシークレットを **このリポジトリ** に登録してください。
+
+| | |
+| --- | --- |
+| 場所 | Settings → Secrets and variables → Actions → New repository secret |
+| 名前 | `OPEN_REPO_TOKEN` |
+| 値 | `fmt-jp/open` に対する **Contents: Read and write** を持つトークン |
+
+fine-grained PAT で「Repository access」を `fmt-jp/open` だけに絞るのが安全です。
+アカウント全体に効くトークンを置きたくない場合は、代わりに
+`open` 側のデプロイキー（書き込み許可）を作り、秘密鍵をシークレットに入れて
+SSH で push する形にもできます。
+
+**シークレットが未設定の間、このワークフローは何もせずに終了します**
+（失敗扱いにはしません）。設定した時点から自動反映が始まります。
+
+初回のみ、`open/index.html` のアプリ一覧にカードを1件追加する必要があります
+（一覧は自動更新の対象外）。
+
 ## iOS / Android（Capacitor）
 
 ```bash

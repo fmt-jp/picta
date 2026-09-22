@@ -796,3 +796,38 @@ Webでは IndexedDB なので、端末の空き容量が減るとブラウザに
 Chromium（ヘッドレス、エンゲージメント無し）では `persist()` が拒否され、
 「保護されていません」のまま正しく表示されることを確認した
 （できていないのに成功したように見せない）。
+
+---
+
+## v1.0後の追加: fmt-jp/open への自動反映
+
+### 背景
+
+同じアプリを [fmt-jp/open](https://github.com/fmt-jp/open) のアプリ置き場でも
+`torikoto/` として公開することにした。手作業でビルド成果物をコピーし続けるのは
+確実に忘れるので、`main` への push で自動反映するようにした。
+
+### 実装
+
+`.github/workflows/publish-to-open.yml`
+
+- ビルド前に型チェックとテストを通す（壊れたものを公開先へ配らない）
+- `open` をチェックアウトし、**`torikoto/` だけ**を入れ替えて commit / push
+  - 他のアプリや `index.html` には触れない
+  - 差分が無ければ commit せず notice を出して終了
+- `concurrency` で `open` への push が重ならないようにする
+
+### トークンの扱い
+
+別リポジトリへ push するため `GITHUB_TOKEN` では足りず、
+`OPEN_REPO_TOKEN`（`fmt-jp/open` の Contents: Read and write）が要る。
+
+**未設定でも失敗させない**設計にした。`secrets` は `if:` から直接参照できないため、
+先行ジョブでシークレットの有無を出力に落とし、本体ジョブの `if:` で判定する。
+未設定なら notice を出してスキップする（赤いバツを残さない）。
+
+### 既知の制約
+
+- `open/index.html` のアプリ一覧カードは自動更新しない（初回だけ手動）
+- Pages へのデプロイとは別ワークフローにした。ビルドは二重になるが、
+  `open` への同期が失敗しても Pages の公開は止まらない

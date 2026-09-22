@@ -1,0 +1,97 @@
+# main への push でビルドし、fmt-jp/open の torikoto/ を更新する。
+#
+# 必要な設定（未設定なら何もせず終了する）:
+#   Settings → Secrets and variables → Actions → New repository secret
+#     名前: OPEN_REPO_TOKEN
+#     値  : fmt-jp/open に Contents: Read and write を持つトークン
+#           （fine-grained PAT で対象リポジトリを fmt-jp/open だけに絞るのが安全）
+#
+# アプリ一覧（open/index.html）のカードは同期対象外。初回だけ手動で追加する。
+name: Publish to open
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# open への push が重ならないようにする。実行中のものは止めない。
+concurrency:
+  group: publish-to-open
+  cancel-in-progress: false
+
+jobs:
+  check-secret:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      # secrets は if: で直接参照できないため、いったん出力に落とす。
+      - id: check
+        env:
+          TOKEN: ${{ secrets.OPEN_REPO_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::OPEN_REPO_TOKEN が未設定のため、open への同期をスキップしました。設定するとこのワークフローが有効になります。"
+          fi
+
+  publish:
+    needs: check-secret
+    if: needs.check-secret.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      # 壊れたものを公開先へ配らないよう、ここでも検査する。
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npx vite build
+
+      - name: Checkout open
+        uses: actions/checkout@v4
+        with:
+          repository: fmt-jp/open
+          token: ${{ secrets.OPEN_REPO_TOKEN }}
+          path: open-repo
+
+      - name: Copy build into open/torikoto
+        run: |
+          set -euo pipefail
+          # torikoto/ だけを入れ替える。open の他のアプリには触れない。
+          rm -rf open-repo/torikoto
+          mkdir -p open-repo/torikoto
+          cp -r dist/. open-repo/torikoto/
+          # .nojekyll は open のルートにあるので不要。
+          rm -f open-repo/torikoto/.nojekyll
+
+      - name: Commit and push
+        working-directory: open-repo
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add torikoto
+          if git diff --cached --quiet; then
+            echo "::notice::torikoto/ に変更はありません。"
+            exit 0
+          fi
+          git commit -m "torikoto: picta ${GITHUB_SHA:0:7} を反映"
+          git push
+          echo "::notice::open/torikoto/ を更新しました。"
