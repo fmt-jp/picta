@@ -230,18 +230,25 @@ try {
   check('CSVがBOM付きUTF-8', csvBytes[0] === 0xef && csvBytes[1] === 0xbb && csvBytes[2] === 0xbf);
   const csv = strFromU8(csvBytes);
   check('日本語が化けない', csv.includes('ここから見ると綺麗') && csv.includes('"旅行|グルメ"'));
-  const exported = entries[names.find((n) => n.startsWith('photos/'))];
+  const photoEntries = names.filter((n) => n.startsWith('photos/')).map((n) => entries[n]);
   check(
     'ZIP内の写真にもEXIFが残る',
-    exported[2] === 0xff &&
-      exported[3] === 0xe1 &&
-      String.fromCharCode(...exported.slice(6, 10)) === 'Exif',
+    photoEntries.every(
+      (photo) =>
+        photo[2] === 0xff &&
+        photo[3] === 0xe1 &&
+        String.fromCharCode(...photo.slice(6, 10)) === 'Exif',
+    ),
   );
-  const exportedText = strFromU8(exported.slice(0, 8192));
+  // Which photo gets which file name depends on the capture seconds, so look
+  // for each memo across all of them rather than assuming an order.
+  const photoTexts = photoEntries.map((photo) => strFromU8(photo.slice(0, 8192)));
   check(
     'ZIP内の写真にメモがキャプションとして入る',
-    exportedText.includes('http://ns.adobe.com/xap/1.0/') &&
-      exportedText.includes('また来たい（編集済み）'),
+    photoTexts.every((text) => text.includes('http://ns.adobe.com/xap/1.0/')) &&
+      photoTexts.some((text) => text.includes('また来たい（編集済み）')) &&
+      photoTexts.some((text) => text.includes('ここから見ると綺麗')),
+    names.join(', '),
   );
   const header = strFromU8(entries['records.csv']).split('\r\n')[0].replace(/^\uFEFF/, '');
   check(
