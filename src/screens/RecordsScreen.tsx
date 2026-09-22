@@ -7,7 +7,7 @@ import ChoiceDialog from '../ui/ChoiceDialog';
 import { useMenu } from '../ui/menuContext';
 import { clearMemos, deleteRecords, listRecords, listRecordsByTag } from '../db/records';
 import { invalidatePhotoUrl } from '../db/usePhotoUrl';
-import { canDeleteFromLibrary, libraryDeleteLimitation } from '../platform/photoLibrary';
+import { canDeleteFromLibrary } from '../platform/photoLibrary';
 
 /** 過去の記録。`/tags/:name` からはそのタグの記録だけを表示する。 */
 export default function RecordsScreen() {
@@ -155,20 +155,23 @@ export default function RecordsScreen() {
               onSelect: () => void run('memo'),
             },
             {
-              label: 'アプリ内から削除',
+              label: '削除する',
               description: '記録ごと削除します。端末に保存した写真は残ります',
               danger: true,
               onSelect: () => void run('record'),
             },
-            {
-              label: 'アプリ内と端末の写真を削除',
-              description:
-                libraryDeleteLimitation() ??
-                '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
-              danger: true,
-              disabled: !canDeleteFromLibrary(),
-              onSelect: () => void run('record-and-library'),
-            },
+            // 端末の写真を消せるのは Android ネイティブのみ。消せる環境でだけ出す。
+            ...(canDeleteFromLibrary()
+              ? [
+                  {
+                    label: 'アプリ内と端末の写真を削除',
+                    description:
+                      '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
+                    danger: true,
+                    onSelect: () => void run('record-and-library'),
+                  },
+                ]
+              : []),
           ]}
           onCancel={() => setConfirming(false)}
         />

@@ -977,3 +977,57 @@ button.record-item {
   color: var(--text-faint);
   line-height: 1.5;
 }
+
+/* --- full-screen photo viewer -------------------------------------------- */
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(8px + var(--safe-top)) calc(10px + var(--safe-right)) 8px
+    calc(14px + var(--safe-left));
+}
+
+.viewer-hint {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.viewer-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The gestures are handled in JS, so the browser must not claim them. */
+  touch-action: none;
+}
+
+.viewer-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+/* The photo on the detail screen opens the viewer. */
+button.photo-frame {
+  border: none;
+  padding: 0;
+  cursor: zoom-in;
+  width: 100%;
+}

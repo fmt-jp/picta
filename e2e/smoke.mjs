@@ -239,6 +239,21 @@ try {
   await page.locator('dd', { hasText: 'また来たい（編集済み）' }).waitFor();
   check('メモを編集できる', true);
 
+  await page.getByRole('button', { name: '写真を拡大表示' }).click();
+  const viewer = page.getByRole('dialog', { name: '写真' });
+  await viewer.waitFor();
+  const stage = await page.locator('.viewer-stage').boundingBox();
+  await page.mouse.dblclick(stage.x + stage.width / 2, stage.y + stage.height / 2);
+  await page.waitForTimeout(150);
+  check(
+    '写真を全画面で開いて拡大できる',
+    (await page.locator('.viewer-stage img').evaluate((el) => el.style.transform)).includes(
+      'scale(2.5)',
+    ),
+  );
+  await page.getByRole('button', { name: '閉じる' }).click();
+  check('拡大表示を閉じられる', (await page.getByRole('dialog', { name: '写真' }).count()) === 0);
+
   console.log('検索');
   await page.goto(`${BASE}/#/search`, { waitUntil: 'networkidle' });
   await page.getByLabel('検索語').fill('編集済み');
@@ -322,11 +337,11 @@ try {
   await page.getByText('ここから見ると綺麗').click();
   await page.getByRole('button', { name: 'この記録を削除' }).click();
   check(
-    '単体削除も2択になっている',
-    (await page.getByRole('button', { name: /アプリ内から削除/ }).isEnabled()) &&
-      (await page.getByRole('button', { name: /アプリ内と端末の写真を削除/ }).isDisabled()),
+    '単体削除はシンプルな確認だけ',
+    (await page.getByText('端末に保存した写真は削除されません。').isVisible()) &&
+      (await page.getByRole('button', { name: /端末の写真を削除/ }).count()) === 0,
   );
-  await page.getByRole('button', { name: /アプリ内から削除/ }).click();
+  await page.getByRole('button', { name: '削除する' }).click();
   await page.waitForURL(/#\/records$/);
   await page.locator('.record-memo', { hasText: 'また来たい（編集済み）' }).waitFor();
   check('削除後は一覧に戻り、残りの記録が見える', (await page.locator('.record-memo').count()) === 1);
@@ -355,11 +370,10 @@ try {
   await page.getByRole('button', { name: '1件を削除' }).click();
   await page.getByRole('dialog').waitFor();
   check(
-    '確認画面に3つの選択肢が出る',
+    '確認画面は「メモだけ削除」と「削除する」の2択',
     (await page.getByRole('button', { name: /メモだけ削除/ }).isEnabled()) &&
-      (await page.getByRole('button', { name: /アプリ内から削除/ }).isEnabled()) &&
-      // Webでは端末の写真を消せないので選べない状態で理由を出す
-      (await page.getByRole('button', { name: /アプリ内と端末の写真を削除/ }).isDisabled()),
+      (await page.getByRole('button', { name: /削除する/ }).isEnabled()) &&
+      (await page.getByRole('button', { name: /端末の写真を削除/ }).count()) === 0,
   );
   await page.getByRole('button', { name: /メモだけ削除/ }).click();
   await page.getByText('1件のメモを削除しました').waitFor();
@@ -383,7 +397,7 @@ try {
   await page.getByRole('button', { name: '選択' }).click();
   await page.getByRole('checkbox').first().click();
   await page.getByRole('button', { name: '1件を削除' }).click();
-  await page.getByRole('button', { name: /アプリ内から削除/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /削除する/ }).click();
   await page.getByText('1件の記録を削除しました').waitFor();
   const afterRecordDelete = await page.evaluate(
     () =>

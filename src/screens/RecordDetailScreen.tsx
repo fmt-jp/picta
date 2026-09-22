@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Record } from '../types';
 import ScreenHeader from '../ui/ScreenHeader';
 import ChoiceDialog from '../ui/ChoiceDialog';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import PhotoViewer from '../ui/PhotoViewer';
 import { formatDateTime } from '../format';
 import { deleteRecord, getRecord } from '../db/records';
 import { loadPhotoBlob } from '../db/photoStore';
 import { invalidatePhotoUrl, usePhotoUrl } from '../db/usePhotoUrl';
 import {
   canDeleteFromLibrary,
-  libraryDeleteLimitation,
   photoLibraryMode,
   savePhotoToLibrary,
 } from '../platform/photoLibrary';
@@ -21,6 +22,7 @@ export default function RecordDetailScreen() {
   const [record, setRecord] = useState<Record | null | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notice, setNotice] = useState('');
+  const [viewing, setViewing] = useState(false);
   const photoUrl = usePhotoUrl(record?.photoId);
   // Kept in state so the share sheet can be opened straight from the tap —
   // iOS drops the user activation if a file has to be read first.
@@ -110,9 +112,15 @@ export default function RecordDetailScreen() {
       <div className="screen-body">
         {notice ? <div className="notice">{notice}</div> : null}
 
-        <div className="photo-frame section">
+        <button
+          type="button"
+          className="photo-frame section"
+          onClick={() => setViewing(true)}
+          disabled={!photoUrl}
+          aria-label="写真を拡大表示"
+        >
           {photoUrl ? <img src={photoUrl} alt={record.memo || '記録した写真'} /> : null}
-        </div>
+        </button>
 
         <dl className="dl section">
           <dt>撮影日時</dt>
@@ -175,28 +183,45 @@ export default function RecordDetailScreen() {
         </button>
       </div>
 
-      {confirmDelete ? (
-        <ChoiceDialog
-          title="この記録を削除しますか？"
-          choices={[
-            {
-              label: 'アプリ内から削除',
-              description: '端末に保存した写真はそのまま残ります',
-              danger: true,
-              onSelect: () => void onDelete(false),
-            },
-            {
-              label: 'アプリ内と端末の写真を削除',
-              description:
-                libraryDeleteLimitation() ??
-                '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
-              danger: true,
-              disabled: !canDeleteFromLibrary(),
-              onSelect: () => void onDelete(true),
-            },
-          ]}
-          onCancel={() => setConfirmDelete(false)}
+      {viewing && photoUrl ? (
+        <PhotoViewer
+          url={photoUrl}
+          alt={record.memo || '記録した写真'}
+          onClose={() => setViewing(false)}
         />
+      ) : null}
+
+      {confirmDelete ? (
+        canDeleteFromLibrary() ? (
+          // 端末の写真を消せるのは Android ネイティブのみ。消せる環境でだけ選ばせる。
+          <ChoiceDialog
+            title="この記録を削除しますか？"
+            choices={[
+              {
+                label: 'アプリ内から削除',
+                description: '端末に保存した写真はそのまま残ります',
+                danger: true,
+                onSelect: () => void onDelete(false),
+              },
+              {
+                label: 'アプリ内と端末の写真を削除',
+                description: '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
+                danger: true,
+                onSelect: () => void onDelete(true),
+              },
+            ]}
+            onCancel={() => setConfirmDelete(false)}
+          />
+        ) : (
+          <ConfirmDialog
+            title="この記録を削除しますか？"
+            message="端末に保存した写真は削除されません。"
+            confirmLabel="削除する"
+            danger
+            onConfirm={() => void onDelete(false)}
+            onCancel={() => setConfirmDelete(false)}
+          />
+        )
       ) : null}
     </div>
   );
