@@ -13,12 +13,14 @@ import type { GeoPoint } from '../types';
  */
 
 const TAG = {
+  ImageDescription: 0x010e,
   DateTime: 0x0132,
   ExifIfdPointer: 0x8769,
   GpsIfdPointer: 0x8825,
   ExifVersion: 0x9000,
   DateTimeOriginal: 0x9003,
   DateTimeDigitized: 0x9004,
+  UserComment: 0x9286,
   OffsetTimeOriginal: 0x9011,
   GpsVersionId: 0x0000,
   GpsLatitudeRef: 0x0001,
@@ -31,11 +33,30 @@ const TYPE = { BYTE: 1, ASCII: 2, SHORT: 3, LONG: 4, RATIONAL: 5, UNDEFINED: 7 }
 const TYPE_SIZE: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
 
 const EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
+/** APP1 namespace that marks an XMP packet. */
+const XMP_HEADER = 'http://ns.adobe.com/xap/1.0/\0';
+
+/**
+ * UserComment is 8 bytes of character-code prefix followed by the text.
+ * "UNICODE\0" means UTF-16 in the TIFF's byte order — the only prefix that
+ * carries Japanese safely.
+ */
+const UNICODE_PREFIX = [0x55, 0x4e, 0x49, 0x43, 0x4f, 0x44, 0x45, 0x00];
+const ASCII_PREFIX = [0x41, 0x53, 0x43, 0x49, 0x49, 0x00, 0x00, 0x00];
+
+/**
+ * How much of a memo is written into the JPEG. A whole record's memo can be
+ * long, and an APP1 segment has 64KB to hold everything; 2000 characters is
+ * far more than a "one-liner" and leaves the segment comfortably small.
+ */
+export const MAX_CAPTION_CHARS = 2000;
 
 export interface ExifData {
   /** ms epoch, from DateTimeOriginal (or DateTime). */
   capturedAt?: number;
   location?: GeoPoint;
+  /** The photo's caption: UserComment, or ImageDescription as a fallback. */
+  caption?: string;
 }
 
 /* ------------------------------------------------------------------ reading */
@@ -67,7 +88,9 @@ interface Reader {
   little: boolean;
 }
 
-function readValue(reader: Reader, entryOffset: number): number[] | string | null {
+type TagValue = number[] | string | Uint8Array;
+
+function readValue(reader: Reader, entryOffset: number): TagValue | null {
   const { view, base, little } = reader;
   const type = view.getUint16(entryOffset + 2, little);
   const count = view.getUint32(entryOffset + 4, little);
@@ -79,13 +102,16 @@ function readValue(reader: Reader, entryOffset: number): number[] | string | nul
   if (start < 0 || start + total > view.byteLength) return null;
 
   if (type === TYPE.ASCII) {
-    let text = '';
-    for (let i = 0; i < count; i++) {
-      const code = view.getUint8(start + i);
-      if (code === 0) break;
-      text += String.fromCharCode(code);
-    }
-    return text;
+    // Nominally ASCII, but plenty of cameras and apps put UTF-8 in here, and
+    // UTF-8 decodes plain ASCII unchanged.
+    const raw = new Uint8Array(view.buffer, view.byteOffset + start, count);
+    const end = raw.indexOf(0);
+    return new TextDecoder('utf-8').decode(end === -1 ? raw : raw.subarray(0, end));
+  }
+
+  if (type === TYPE.UNDEFINED) {
+    // Handed back raw: the meaning depends on the tag (see readUserComment).
+    return new Uint8Array(view.buffer, view.byteOffset + start, count).slice();
   }
 
   const values: number[] = [];
@@ -102,8 +128,8 @@ function readValue(reader: Reader, entryOffset: number): number[] | string | nul
   return values;
 }
 
-function readIfd(reader: Reader, ifdOffset: number): Map<number, number[] | string> {
-  const out = new Map<number, number[] | string>();
+function readIfd(reader: Reader, ifdOffset: number): Map<number, TagValue> {
+  const out = new Map<number, TagValue>();
   const { view, base, little } = reader;
   const at = base + ifdOffset;
   if (at + 2 > view.byteLength) return out;
@@ -134,7 +160,27 @@ export function parseExifDateTime(text: string, offset?: string): number | undef
   return Number.isNaN(ms) ? undefined : ms;
 }
 
-function toDegrees(parts: number[] | string | undefined, ref: string | undefined): number | null {
+/** Decodes a UserComment payload according to its 8-byte character-code prefix. */
+export function decodeUserComment(bytes: Uint8Array, little: boolean): string {
+  if (bytes.length <= 8) return '';
+  const prefix = bytes.subarray(0, 8);
+  const body = bytes.subarray(8);
+  const matches = (expected: number[]) => expected.every((b, i) => prefix[i] === b);
+
+  if (matches(UNICODE_PREFIX)) {
+    const text = new TextDecoder(little ? 'utf-16le' : 'utf-16be').decode(body);
+    return text.replace(/\0+$/, '').trim();
+  }
+  if (matches(ASCII_PREFIX) || prefix.every((b) => b === 0)) {
+    const end = body.indexOf(0);
+    return new TextDecoder('utf-8')
+      .decode(end === -1 ? body : body.subarray(0, end))
+      .trim();
+  }
+  return ''; // JIS and other encodings are not something Torikoto writes.
+}
+
+function toDegrees(parts: TagValue | undefined, ref: string | undefined): number | null {
   if (!Array.isArray(parts) || parts.length < 3 || typeof ref !== 'string') return null;
   const [deg, min, sec] = parts;
   const value = deg + min / 60 + sec / 3600;
@@ -169,6 +215,13 @@ export function parseExifBytes(bytes: Uint8Array): ExifData {
     if (typeof stamp === 'string') {
       result.capturedAt = parseExifDateTime(stamp, typeof offset === 'string' ? offset : undefined);
     }
+
+    const comment = exif.get(TAG.UserComment);
+    const description = ifd0.get(TAG.ImageDescription);
+    const caption =
+      comment instanceof Uint8Array ? decodeUserComment(comment, little) : '';
+    const fallback = typeof description === 'string' ? description.trim() : '';
+    if (caption || fallback) result.caption = caption || fallback;
 
     const latitude = toDegrees(gps.get(TAG.GpsLatitude), gps.get(TAG.GpsLatitudeRef) as string);
     const longitude = toDegrees(gps.get(TAG.GpsLongitude), gps.get(TAG.GpsLongitudeRef) as string);
@@ -205,6 +258,39 @@ function ascii(text: string): Uint8Array {
   const bytes = new Uint8Array(text.length + 1); // NUL terminated
   for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0x7f;
   return bytes;
+}
+
+/**
+ * ImageDescription has no way to declare an encoding, so readers assume ASCII
+ * (Pillow, for one, decodes it as latin-1). Writing UTF-8 there turns a
+ * Japanese memo into mojibake, which is worse than leaving the field out: the
+ * caption still travels in UserComment and XMP, both of which are explicitly
+ * Unicode. So it is written only when the memo is plain ASCII.
+ */
+function isAscii(text: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return /^[\x20-\x7e\r\n\t]*$/.test(text);
+}
+
+/** "UNICODE\0" + UTF-16 in the TIFF byte order (little endian here). */
+function userComment(text: string): Uint8Array {
+  const bytes = new Uint8Array(8 + text.length * 2);
+  bytes.set(UNICODE_PREFIX);
+  const view = new DataView(bytes.buffer);
+  for (let i = 0; i < text.length; i++) {
+    view.setUint16(8 + i * 2, text.charCodeAt(i), true);
+  }
+  return bytes;
+}
+
+/** Keeps a memo inside one APP1 segment without cutting a surrogate pair. */
+export function clampCaption(memo: string): string {
+  const text = memo.trim();
+  if (text.length <= MAX_CAPTION_CHARS) return text;
+  const cut = text.slice(0, MAX_CAPTION_CHARS);
+  // Do not end on a lone high surrogate.
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
 
 function rationals(values: [number, number][]): Uint8Array {
@@ -295,6 +381,8 @@ function degreesToRationals(value: number): [number, number][] {
 export interface ExifInput {
   capturedAt: number;
   location?: GeoPoint | null;
+  /** The record's memo, written as the photo's caption. */
+  memo?: string | null;
 }
 
 /** Builds the APP1 payload (TIFF header onwards). */
@@ -303,6 +391,9 @@ export function buildExifPayload(input: ExifInput): Uint8Array {
   const stamp = ascii(formatExifDateTime(date));
   const offset = ascii(formatExifOffset(date));
   const point = input.location ?? null;
+  const caption = clampCaption(input.memo ?? '');
+  const description = caption && isAscii(caption) ? ascii(caption) : null;
+  const comment = caption ? userComment(caption) : null;
 
   const exifEntries: Entry[] = [
     { tag: TAG.ExifVersion, type: TYPE.UNDEFINED, count: 4, value: ascii('0232').slice(0, 4) },
@@ -310,6 +401,14 @@ export function buildExifPayload(input: ExifInput): Uint8Array {
     { tag: TAG.DateTimeDigitized, type: TYPE.ASCII, count: stamp.length, value: stamp },
     { tag: TAG.OffsetTimeOriginal, type: TYPE.ASCII, count: offset.length, value: offset },
   ];
+  if (comment) {
+    exifEntries.push({
+      tag: TAG.UserComment,
+      type: TYPE.UNDEFINED,
+      count: comment.length,
+      value: comment,
+    });
+  }
 
   const gpsEntries: Entry[] = point
     ? [
@@ -348,12 +447,21 @@ export function buildExifPayload(input: ExifInput): Uint8Array {
 
   // Lay the IFDs out back to back, then the shared data area, so every
   // pointer can be computed before anything is serialized.
-  const ifd0Entries: Entry[] = [
-    { tag: TAG.DateTime, type: TYPE.ASCII, count: stamp.length, value: stamp },
-  ];
+  // IFD0 entries must be written in ascending tag order.
+  const ifd0Entries: Entry[] = [];
+  if (description) {
+    ifd0Entries.push({
+      tag: TAG.ImageDescription,
+      type: TYPE.ASCII,
+      count: description.length,
+      value: description,
+    });
+  }
+  ifd0Entries.push({ tag: TAG.DateTime, type: TYPE.ASCII, count: stamp.length, value: stamp });
+
   const ifd0Offset = 8;
-  // DateTime + the Exif pointer, plus the GPS pointer when there is a fix.
-  const ifd0Size = 2 + (2 + (point ? 1 : 0)) * 12 + 4;
+  // The entries above, plus the Exif pointer and (with a fix) the GPS pointer.
+  const ifd0Size = 2 + (ifd0Entries.length + 1 + (point ? 1 : 0)) * 12 + 4;
   const exifIfdOffset = ifd0Offset + ifd0Size;
   const gpsIfdOffset = exifIfdOffset + ifdByteLength(exifEntries);
   const dataOffset = gpsIfdOffset + (point ? ifdByteLength(gpsEntries) : 0);
@@ -398,8 +506,13 @@ export function buildExifPayload(input: ExifInput): Uint8Array {
 }
 
 /**
- * Returns a copy of `jpeg` with an EXIF APP1 segment holding the capture time
- * and, when known, the location. An existing APP1 is replaced. A non-JPEG is
+ * Returns a copy of `jpeg` carrying the capture time, the place and the memo.
+ *
+ * Two APP1 segments are written: the EXIF one (DateTimeOriginal, GPS,
+ * ImageDescription, UserComment) and an XMP one holding `dc:description`.
+ * The duplication is deliberate — which field a viewer shows as "caption"
+ * differs by app, and only XMP and UserComment are reliably Unicode.
+ * Segments Torikoto wrote before are replaced, never stacked. A non-JPEG is
  * returned untouched.
  */
 export async function withExif(jpeg: Blob, input: ExifInput): Promise<Blob> {
@@ -407,25 +520,105 @@ export async function withExif(jpeg: Blob, input: ExifInput): Promise<Blob> {
     const bytes = new Uint8Array(await jpeg.arrayBuffer());
     if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return jpeg;
 
-    // Drop an APP1 that is already there (imported files) so we do not stack two.
-    let rest = bytes.subarray(2);
-    if (rest[0] === 0xff && rest[1] === 0xe1) {
-      const size = (rest[2] << 8) | rest[3];
-      if (size >= 2 && size + 2 <= rest.length) rest = rest.subarray(2 + size);
+    const rest = stripMetadataSegments(bytes);
+    const segments: Uint8Array[] = [];
+
+    const exifSegment = app1(EXIF_HEADER, buildExifPayload(input));
+    if (!exifSegment) return jpeg; // would not fit — leave the photo alone
+    segments.push(exifSegment);
+
+    const caption = clampCaption(input.memo ?? '');
+    if (caption) {
+      const xmp = app1(
+        Array.from(new TextEncoder().encode(XMP_HEADER)),
+        new TextEncoder().encode(buildXmpPacket(caption)),
+      );
+      if (xmp) segments.push(xmp);
     }
 
-    const payload = buildExifPayload(input);
-    const length = payload.length + EXIF_HEADER.length + 2;
-    if (length > 0xffff) return jpeg; // will not fit in one segment
-
-    const out = new Uint8Array(2 + 2 + length + rest.length);
+    const total = 2 + segments.reduce((sum, seg) => sum + seg.length, 0) + rest.length;
+    const out = new Uint8Array(total);
     out.set([0xff, 0xd8], 0);
-    out.set([0xff, 0xe1, (length >> 8) & 0xff, length & 0xff], 2);
-    out.set(EXIF_HEADER, 6);
-    out.set(payload, 6 + EXIF_HEADER.length);
-    out.set(rest, 6 + EXIF_HEADER.length + payload.length);
+    let cursor = 2;
+    for (const segment of segments) {
+      out.set(segment, cursor);
+      cursor += segment.length;
+    }
+    out.set(rest, cursor);
     return new Blob([out], { type: jpeg.type || 'image/jpeg' });
   } catch {
     return jpeg;
   }
+}
+
+/** One APP1 segment: marker, length, namespace header, payload. */
+function app1(header: number[], payload: Uint8Array): Uint8Array | null {
+  const length = payload.length + header.length + 2;
+  if (length > 0xffff) return null;
+  const segment = new Uint8Array(2 + length);
+  segment.set([0xff, 0xe1, (length >> 8) & 0xff, length & 0xff], 0);
+  segment.set(header, 4);
+  segment.set(payload, 4 + header.length);
+  return segment;
+}
+
+/**
+ * Everything after SOI with the EXIF and XMP APP1 segments taken out, so a
+ * re-stamped photo never accumulates stale copies.
+ */
+function stripMetadataSegments(bytes: Uint8Array): Uint8Array {
+  const keep: Uint8Array[] = [];
+  let offset = 2;
+  const xmpHeader = new TextEncoder().encode(XMP_HEADER);
+
+  while (offset + 4 <= bytes.length && bytes[offset] === 0xff) {
+    const marker = bytes[offset + 1];
+    // From SOS onwards it is entropy-coded image data, not segments.
+    if (marker === 0xda || marker === 0xd9) break;
+    const size = (bytes[offset + 2] << 8) | bytes[offset + 3];
+    if (size < 2 || offset + 2 + size > bytes.length) break;
+
+    const start = offset + 4;
+    const isExif = EXIF_HEADER.every((b, i) => bytes[start + i] === b);
+    const isXmp = xmpHeader.every((b, i) => bytes[start + i] === b);
+    if (!(marker === 0xe1 && (isExif || isXmp))) {
+      keep.push(bytes.subarray(offset, offset + 2 + size));
+    }
+    offset += 2 + size;
+  }
+
+  const tail = bytes.subarray(offset);
+  const out = new Uint8Array(keep.reduce((sum, part) => sum + part.length, 0) + tail.length);
+  let cursor = 0;
+  for (const part of keep) {
+    out.set(part, cursor);
+    cursor += part.length;
+  }
+  out.set(tail, cursor);
+  return out;
+}
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * The smallest XMP packet that carries a caption. `dc:description` is what
+ * photo apps and desktop tools show as the description/caption field, and it
+ * is UTF-8, so Japanese needs no special handling.
+ */
+export function buildXmpPacket(caption: string): string {
+  return (
+    `<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
+    `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Torikoto">` +
+    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">` +
+    `<dc:description><rdf:Alt><rdf:li xml:lang="x-default">${escapeXml(caption)}</rdf:li>` +
+    `</rdf:Alt></dc:description>` +
+    `</rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`
+  );
 }

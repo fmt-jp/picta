@@ -65,6 +65,8 @@ export interface PendingCapture {
    * next shot. Null once resolved with no usable fix.
    */
   locationFix?: Promise<GeoPoint | null>;
+  /** A caption read from an imported photo, used to prefill the memo. */
+  initialMemo?: string;
   /** Object URL for the preview; revoked when the draft is discarded. */
   previewUrl: string;
 }

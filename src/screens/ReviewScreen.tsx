@@ -20,7 +20,7 @@ import { loadSettings } from '../settings';
 export default function ReviewScreen() {
   const navigate = useNavigate();
   const [capture] = useState(() => getPendingCapture());
-  const [memo, setMemo] = useState('');
+  const [memo, setMemo] = useState(() => capture?.initialMemo ?? '');
   const [tags, setTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -76,12 +76,13 @@ export default function ReviewScreen() {
         ? (location ?? (await awaitLocation(capture.locationFix, 2000)))
         : null;
 
-      // A canvas capture carries no metadata, so the date and place are written
-      // into the JPEG here — that is what the photo library copy and every
-      // exported photo will carry.
+      // A canvas capture carries no metadata, so the date, the place and the
+      // memo are written into the JPEG here — that is what the photo library
+      // copy and every exported photo will carry.
       const blob = await withExif(capture.blob, {
         capturedAt: capture.capturedAt,
         location: point,
+        memo,
       });
 
       const record = await createRecord({

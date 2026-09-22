@@ -236,6 +236,12 @@ try {
       exported[3] === 0xe1 &&
       String.fromCharCode(...exported.slice(6, 10)) === 'Exif',
   );
+  const exportedText = strFromU8(exported.slice(0, 8192));
+  check(
+    'ZIP内の写真にメモがキャプションとして入る',
+    exportedText.includes('http://ns.adobe.com/xap/1.0/') &&
+      exportedText.includes('また来たい（編集済み）'),
+  );
   const header = strFromU8(entries['records.csv']).split('\r\n')[0].replace(/^\uFEFF/, '');
   check(
     'CSVに緯度経度の列がある',

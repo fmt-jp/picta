@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { freshDb, samplePhoto } from './dbHelpers';
+import { freshDb, sampleJpeg, samplePhoto } from './dbHelpers';
 import { DEFAULT_TAGS } from '../db/database';
 import { deleteTag, ensureTag, listTags, renameTag } from '../db/tags';
 import {
@@ -14,6 +14,7 @@ import {
   updateRecord,
 } from '../db/records';
 import { loadPhotoBlob } from '../db/photoStore';
+import { parseExifBytes } from '../capture/exif';
 
 const DAY = 24 * 60 * 60 * 1000;
 const T = new Date(2026, 8, 21, 12, 31, 0).getTime();
@@ -182,6 +183,64 @@ describe('記録の一覧・編集・削除', () => {
     const counts = await tagCounts();
     expect(counts.get('旅行')).toBe(2);
     expect(counts.get('家')).toBe(2);
+  });
+});
+
+describe('写真のメタデータ', () => {
+  async function captionOf(photoId: string) {
+    const blob = await loadPhotoBlob(photoId);
+    return parseExifBytes(new Uint8Array(await blob!.arrayBuffer())).caption;
+  }
+
+  it('メモを編集すると写真のキャプションも書き換わる', async () => {
+    const record = await createRecord({
+      photo: sampleJpeg(),
+      memo: '最初のメモ',
+      tags: [],
+      capturedAt: T,
+    });
+    // createRecord に渡す写真は撮影後画面で刻印済みのため、ここでは編集後を見る
+    await updateRecord(record.id, { memo: '書き換えたメモ' });
+    expect(await captionOf(record.photoId)).toBe('書き換えたメモ');
+  });
+
+  it('メモを空にすると写真のキャプションも消える', async () => {
+    const record = await createRecord({
+      photo: sampleJpeg(),
+      memo: 'のこさない',
+      tags: [],
+      capturedAt: T,
+    });
+    await updateRecord(record.id, { memo: '書き換え' });
+    await updateRecord(record.id, { memo: '' });
+    expect(await captionOf(record.photoId)).toBeUndefined();
+  });
+
+  it('位置情報を削除すると写真のGPSも消える', async () => {
+    const record = await createRecord({
+      photo: sampleJpeg(),
+      memo: '場所つき',
+      tags: [],
+      capturedAt: T,
+      location: { latitude: 35.681236, longitude: 139.767125, source: 'device' },
+    });
+    await updateRecord(record.id, { location: null });
+    const blob = await loadPhotoBlob(record.photoId);
+    const exif = parseExifBytes(new Uint8Array(await blob!.arrayBuffer()));
+    expect(exif.location).toBeUndefined();
+    expect(exif.capturedAt).toBe(T);
+  });
+
+  it('タグだけの編集では写真を書き換えない', async () => {
+    const record = await createRecord({
+      photo: sampleJpeg(),
+      memo: 'そのまま',
+      tags: ['旅行'],
+      capturedAt: T,
+    });
+    const before = (await loadPhotoBlob(record.photoId))!.size;
+    await updateRecord(record.id, { tags: ['旅行', '仕事'] });
+    expect((await loadPhotoBlob(record.photoId))!.size).toBe(before);
   });
 });
 

@@ -20,3 +20,15 @@ export function samplePhoto(bytes = 32) {
     height: 900,
   };
 }
+
+/** A minimal but structurally valid JPEG, so EXIF stamping actually runs. */
+export function sampleJpeg() {
+  return {
+    blob: new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x04, 0x11, 0x22, 0xff, 0xd9])], {
+      type: 'image/jpeg',
+    }),
+    mimeType: 'image/jpeg',
+    width: 1440,
+    height: 1440,
+  };
+}

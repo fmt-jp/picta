@@ -37,8 +37,14 @@ export default function CameraScreen() {
   }, [location.state, navigate]);
 
   const goToReview = useCallback(
-    (photo: EncodedPhoto, capturedAt: number, locationFix?: Promise<GeoPoint | null>) => {
+    (
+      photo: EncodedPhoto,
+      capturedAt: number,
+      locationFix?: Promise<GeoPoint | null>,
+      initialMemo?: string,
+    ) => {
       setPendingCapture({
+        initialMemo,
         blob: photo.blob,
         mimeType: photo.mimeType,
         width: photo.width,
@@ -80,7 +86,8 @@ export default function CameraScreen() {
       setError('');
       try {
         // A file from the OS camera or the library does carry EXIF — prefer its
-        // own timestamp and position over the file's mtime and a fresh fix.
+        // own timestamp, position and caption over the file's mtime and a
+        // fresh fix.
         const exif = await readExif(file);
         const fallback = file instanceof File && file.lastModified ? file.lastModified : Date.now();
         const capturedAt = exif.capturedAt ?? fallback;
@@ -89,7 +96,7 @@ export default function CameraScreen() {
           : loadSettings().recordLocation
             ? requestLocation()
             : undefined;
-        goToReview(await encodeImageFile(file), capturedAt, locationFix);
+        goToReview(await encodeImageFile(file), capturedAt, locationFix, exif.caption);
       } catch (err) {
         setError(err instanceof Error ? err.message : '画像を読み込めませんでした');
       } finally {

@@ -188,6 +188,22 @@ describe('撮影後画面の位置情報', () => {
     expect(exif.location?.latitude).toBeCloseTo(35.681236, 5);
   });
 
+  it('メモが写真のキャプションとして書き込まれる', async () => {
+    const user = userEvent.setup();
+    primeCapture(Promise.resolve(tokyo));
+    renderReview();
+
+    await user.type(screen.getByLabelText('メモ（任意）'), 'この店また来たい');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(async () => expect(await listRecords()).toHaveLength(1));
+    const [record] = await listRecords();
+    const blob = await loadPhotoBlob(record.photoId);
+    expect(parseExifBytes(new Uint8Array(await blob!.arrayBuffer())).caption).toBe(
+      'この店また来たい',
+    );
+  });
+
   it('位置情報をオフにすると記録にもEXIFにも入らない', async () => {
     const user = userEvent.setup();
     primeCapture(Promise.resolve(tokyo));

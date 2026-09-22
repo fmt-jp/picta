@@ -2,7 +2,8 @@ import type { GeoPoint, Record } from '../types';
 import { photoStamp } from '../capture/imageUtil';
 import { getDb } from './database';
 import { newId } from './ids';
-import { deletePhoto, savePhoto, type PhotoInput } from './photoStore';
+import { deletePhoto, getPhotoRow, loadPhotoBlob, savePhoto, type PhotoInput } from './photoStore';
+import { withExif } from '../capture/exif';
 import { ensureTag, normalizeTagName } from './tags';
 
 export interface NewRecordInput {
@@ -99,7 +100,34 @@ export async function updateRecord(
   if (patch.location === null) delete next.location;
   else if (patch.location) next.location = patch.location;
   await db.put('records', next);
+
+  // The photo carries the memo and the place in its own metadata, so an edit
+  // has to reach the JPEG too — otherwise an export would ship a stale caption.
+  if (next.memo !== current.memo || next.location !== current.location) {
+    await restampPhoto(next);
+  }
   return next;
+}
+
+/** Rewrites the stored photo's EXIF/XMP from the record as it now stands. */
+export async function restampPhoto(record: Record): Promise<void> {
+  const row = await getPhotoRow(record.photoId);
+  const blob = row ? await loadPhotoBlob(record.photoId) : null;
+  if (!row || !blob) return;
+
+  const stamped = await withExif(blob, {
+    capturedAt: record.capturedAt,
+    location: record.location ?? null,
+    memo: record.memo,
+  });
+  if (stamped === blob) return; // not a JPEG — nothing to stamp
+
+  await savePhoto(record.photoId, {
+    blob: stamped,
+    mimeType: row.mimeType,
+    width: row.width,
+    height: row.height,
+  });
 }
 
 /**

@@ -515,3 +515,65 @@ GPS: 35.68123611111111 139.76712500000002
 
 - 単体・画面テスト 113件成功 / E2E 28項目成功
 - 表示名・エクスポートのファイル名・manifestの `format` を新名で検証
+
+---
+
+## v1.0後の改善: メモを写真のキャプションに書き込む
+
+### 調査
+
+「キャプション」に当たるフィールドは1つではなく、日本語が確実に残るものは限られる。
+
+| フィールド | 文字コード | 判断 |
+| --- | --- | --- |
+| EXIF `UserComment` | 8バイトの文字コード前置（`UNICODE\0` = UTF-16） | 採用。EXIF標準で日本語を扱える |
+| XMP `dc:description` | UTF-8 | 採用。写真アプリが「説明」として表示するのはここ |
+| EXIF `ImageDescription` | 宣言なし（ASCII前提で読まれる） | ASCIIのメモのときだけ採用 |
+| IPTC `Caption-Abstract` | — | 見送り（APP13/Photoshop IRBが必要で、XMPと役割が重なる） |
+
+`ImageDescription` にUTF-8を書いた場合の挙動をPillowで実測したところ、
+latin-1として解釈され文字化けした。化けた文字を残すより空のほうがましなため、
+ASCIIのメモに限定した。
+
+### 実装
+
+- `withExif` がEXIFとXMPの2つのAPP1セグメントを書くようにした
+  - 既存のEXIF/XMPセグメントは走査して除去してから書き直す（積み重ならない）
+  - `UserComment` は `UNICODE\0` + UTF-16LE（TIFFのバイト順に合わせる）
+  - XMPは `dc:description` のみの最小パケット。XMLエスケープあり
+- 読み側も対応：`UserComment`（前置の文字コードを見て復号）と
+  `ImageDescription` を読み、ファイル選択で取り込んだ画像のキャプションを
+  メモの初期値にする
+- ASCII型タグの読み取りをUTF-8デコードに変更（ASCIIはその部分集合なので安全）
+- メモを2000文字で切り詰める（APP1は64KBまで。サロゲートペアは割らない）
+- **メモ・位置を編集したら保存済みの写真も刻印し直す**（`restampPhoto`）
+  - タグだけの編集では書き直さない
+
+### テスト
+
+- `exif.test.ts` 25件：日本語・絵文字の往復、XMPの内容とエスケープ、
+  ASCII/日本語での `ImageDescription` の出し分け、切り詰め、
+  書き直しでセグメントが二重にならないこと、メモを空にすると消えること
+- `db.test.ts`：メモ編集で写真のキャプションが追従／空にすると消える／
+  位置削除でGPSも消える／タグだけの編集では写真を書き換えない
+- `review.test.tsx`：保存した写真にメモがキャプションとして入る
+- E2E：**ZIP内の写真に編集後のメモがキャプションとして入っている**こと
+- 単体・画面テスト 129件成功 / E2E 30項目成功
+
+### 独立検証（Pillow + defusedxml）
+
+```
+=== 日本語のメモ
+ ImageDescription : None                      ← 文字化け回避のため書かない
+ UserComment      : この店また来たい。紅葉が綺麗🍁
+ XMP description  : この店また来たい。紅葉が綺麗🍁
+=== ASCIIのメモ
+ ImageDescription : 'nice cafe, come back'
+ UserComment      : nice cafe, come back
+ XMP description  : nice cafe, come back
+```
+
+### 見送ったもの
+
+- タグを `dc:subject` / `XPKeywords` に書くこと（今回の要望はキャプションのみ）
+- Windows専用の `XPComment` / `XPTitle`
