@@ -111,8 +111,6 @@ describe('記録詳細', () => {
     await user.click(await screen.findByRole('button', { name: 'この記録を削除' }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('端末に保存した写真は削除されません。')).toBeInTheDocument();
-    // 端末の写真を消せない環境では選択肢を出さない
-    expect(within(dialog).queryByRole('button', { name: /端末の写真を削除/ })).toBeNull();
 
     await user.click(within(dialog).getByRole('button', { name: '削除する' }));
     await waitFor(async () => expect(await getRecord(record.id)).toBeUndefined());
@@ -209,7 +207,7 @@ describe('複数選択して削除', () => {
     expect(screen.getByRole('button', { name: '削除する記録を選んでください' })).toBeDisabled();
   });
 
-  it('削除前に確認画面で2つの選択肢を出す', async () => {
+  it('削除前にシンプルな確認を出す', async () => {
     const user = userEvent.setup();
     await seed();
     await enterSelection(user);
@@ -219,29 +217,10 @@ describe('複数選択して削除', () => {
     await user.click(screen.getByRole('button', { name: '2件を削除' }));
 
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByRole('heading', { name: '2件をどう削除しますか？' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /メモだけ削除/ })).toBeEnabled();
-    const remove = within(dialog).getByRole('button', { name: /削除する/ });
-    expect(remove).toBeEnabled();
-    expect(remove).toHaveTextContent('端末に保存した写真は残ります');
-    // 端末の写真を消せない環境では選択肢自体を出さない
-    expect(within(dialog).queryByRole('button', { name: /端末の写真を削除/ })).toBeNull();
-  });
-
-  it('「メモだけ削除」は写真とタグを残してメモだけ消す', async () => {
-    const user = userEvent.setup();
-    const newest = await seed();
-    await enterSelection(user);
-
-    await user.click(screen.getAllByRole('checkbox')[0]); // この店また来たい
-    await user.click(screen.getByRole('button', { name: '1件を削除' }));
-    await user.click(screen.getByRole('button', { name: /メモだけ削除/ }));
-
-    await waitFor(async () => expect((await getRecord(newest.id))?.memo).toBe(''));
-    const kept = await getRecord(newest.id);
-    expect(kept?.tags).toEqual(['旅行', 'グルメ']);
-    expect(await loadPhotoBlob(newest.photoId)).not.toBeNull();
-    expect(await listRecords()).toHaveLength(3);
+    expect(within(dialog).getByRole('heading', { name: '2件を削除しますか？' })).toBeInTheDocument();
+    expect(within(dialog).getByText('端末に保存した写真は削除されません。')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: '削除する' })).toBeEnabled();
+    expect(within(dialog).queryByRole('button', { name: /メモだけ/ })).toBeNull();
   });
 
   it('「削除する」は記録ごと消す（端末の写真は残る）', async () => {
@@ -252,9 +231,7 @@ describe('複数選択して削除', () => {
     await user.click(screen.getAllByRole('checkbox')[0]);
     await user.click(screen.getAllByRole('checkbox')[1]);
     await user.click(screen.getByRole('button', { name: '2件を削除' }));
-    await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: /削除する/ }),
-    );
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '削除する' }));
 
     await waitFor(async () => expect(await listRecords()).toHaveLength(1));
     expect(await getRecord(newest.id)).toBeUndefined();

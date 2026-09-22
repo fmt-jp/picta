@@ -211,21 +211,6 @@ export async function deleteRecords(
   return total;
 }
 
-/**
- * Clears the memo on several records, keeping the photo, the tags and the
- * capture time. The photos are re-stamped, so their caption goes too.
- */
-export async function clearMemos(ids: string[]): Promise<number> {
-  let cleared = 0;
-  for (const id of ids) {
-    const record = await getRecord(id);
-    if (!record || !record.memo) continue;
-    await updateRecord(id, { memo: '' });
-    cleared += 1;
-  }
-  return cleared;
-}
-
 /** NFKC + lower-case so 全角/半角 and letter case do not split a match. */
 export function foldForSearch(text: string): string {
   return text.normalize('NFKC').toLowerCase();

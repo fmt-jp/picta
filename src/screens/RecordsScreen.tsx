@@ -3,11 +3,10 @@ import { useParams } from 'react-router-dom';
 import type { Record } from '../types';
 import ScreenHeader from '../ui/ScreenHeader';
 import RecordList from '../ui/RecordList';
-import ChoiceDialog from '../ui/ChoiceDialog';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { useMenu } from '../ui/menuContext';
-import { clearMemos, deleteRecords, listRecords, listRecordsByTag } from '../db/records';
+import { deleteRecords, listRecords, listRecordsByTag } from '../db/records';
 import { invalidatePhotoUrl } from '../db/usePhotoUrl';
-import { canDeleteFromLibrary } from '../platform/photoLibrary';
 
 /** 過去の記録。`/tags/:name` からはそのタグの記録だけを表示する。 */
 export default function RecordsScreen() {
@@ -54,42 +53,24 @@ export default function RecordsScreen() {
     [records, selected],
   );
 
-  /** Deleting the memo only leaves records that never had one untouched. */
-  const withMemo = selectedRecords.filter((record) => record.memo).length;
-
-  const run = useCallback(
-    async (action: 'memo' | 'record' | 'record-and-library') => {
-      if (busy) return;
-      setBusy(true);
-      setError('');
-      const ids = selectedRecords.map((record) => record.id);
-      try {
-        if (action === 'memo') {
-          const cleared = await clearMemos(ids);
-          setNotice(`${cleared}件のメモを削除しました`);
-        } else {
-          // Drop the cached object URLs first: those photos are about to go.
-          for (const record of selectedRecords) invalidatePhotoUrl(record.photoId);
-          const alsoFromLibrary = action === 'record-and-library';
-          const outcome = await deleteRecords(ids, { alsoFromLibrary });
-          let message = `${outcome.removed}件の記録を削除しました`;
-          if (alsoFromLibrary) {
-            message += `（端末の写真 ${outcome.libraryDeleted}件を削除`;
-            message += outcome.libraryFailed > 0 ? `／${outcome.libraryFailed}件は削除できず）` : '）';
-          }
-          setNotice(message);
-        }
-        exitSelection();
-        await load();
-      } catch {
-        setError('削除に失敗しました');
-        setConfirming(false);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [busy, exitSelection, load, selectedRecords],
-  );
+  const remove = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      // Drop the cached object URLs first: those photos are about to go.
+      for (const record of selectedRecords) invalidatePhotoUrl(record.photoId);
+      const outcome = await deleteRecords(selectedRecords.map((record) => record.id));
+      setNotice(`${outcome.removed}件の記録を削除しました`);
+      exitSelection();
+      await load();
+    } catch {
+      setError('削除に失敗しました');
+      setConfirming(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, exitSelection, load, selectedRecords]);
 
   const count = selected.size;
   const title = selecting ? `${count}件を選択` : name ? `#${name}` : '過去の記録';
@@ -143,36 +124,12 @@ export default function RecordsScreen() {
       ) : null}
 
       {confirming ? (
-        <ChoiceDialog
-          title={`${count}件をどう削除しますか？`}
-          choices={[
-            {
-              label: 'メモだけ削除',
-              description:
-                withMemo === 0
-                  ? '選んだ記録にメモはありません'
-                  : `写真とタグは残ります（メモがあるのは${withMemo}件）`,
-              onSelect: () => void run('memo'),
-            },
-            {
-              label: '削除する',
-              description: '記録ごと削除します。端末に保存した写真は残ります',
-              danger: true,
-              onSelect: () => void run('record'),
-            },
-            // 端末の写真を消せるのは Android ネイティブのみ。消せる環境でだけ出す。
-            ...(canDeleteFromLibrary()
-              ? [
-                  {
-                    label: 'アプリ内と端末の写真を削除',
-                    description:
-                      '端末のフォトライブラリに保存した写真も削除します。元に戻せません',
-                    danger: true,
-                    onSelect: () => void run('record-and-library'),
-                  },
-                ]
-              : []),
-          ]}
+        <ConfirmDialog
+          title={`${count}件を削除しますか？`}
+          message="端末に保存した写真は削除されません。"
+          confirmLabel="削除する"
+          danger
+          onConfirm={() => void remove()}
           onCancel={() => setConfirming(false)}
         />
       ) : null}

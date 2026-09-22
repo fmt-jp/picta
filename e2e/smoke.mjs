@@ -370,38 +370,17 @@ try {
   await page.getByRole('button', { name: '1件を削除' }).click();
   await page.getByRole('dialog').waitFor();
   check(
-    '確認画面は「メモだけ削除」と「削除する」の2択',
-    (await page.getByRole('button', { name: /メモだけ削除/ }).isEnabled()) &&
-      (await page.getByRole('button', { name: /削除する/ }).isEnabled()) &&
+    'まとめて削除もシンプルな確認だけ',
+    (await page.getByText('端末に保存した写真は削除されません。').isVisible()) &&
+      (await page.getByRole('button', { name: /メモだけ/ }).count()) === 0 &&
       (await page.getByRole('button', { name: /端末の写真を削除/ }).count()) === 0,
   );
-  await page.getByRole('button', { name: /メモだけ削除/ }).click();
-  await page.getByText('1件のメモを削除しました').waitFor();
-  const afterMemoDelete = await page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        const request = indexedDB.open('picta');
-        request.onsuccess = () => {
-          const rows = request.result.transaction('records').objectStore('records').getAll();
-          rows.onsuccess = () =>
-            resolve(rows.result.map((r) => ({ memo: r.memo, tags: r.tags.length })));
-        };
-      }),
-  );
-  check(
-    'メモだけ削除では記録とタグが残る',
-    afterMemoDelete.length === 1 && afterMemoDelete[0].memo === '' && afterMemoDelete[0].tags > 0,
-    JSON.stringify(afterMemoDelete),
-  );
-
-  await page.getByRole('button', { name: '選択' }).click();
-  await page.getByRole('checkbox').first().click();
-  await page.getByRole('button', { name: '1件を削除' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /削除する/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '削除する' }).click();
   await page.getByText('1件の記録を削除しました').waitFor();
-  const afterRecordDelete = await page.evaluate(
+  const afterDelete = await page.evaluate(
     () =>
       new Promise((resolve) => {
+        // The store name intentionally keeps the app's former name.
         const request = indexedDB.open('picta');
         request.onsuccess = () => {
           const tx = request.result.transaction(['records', 'photos']);
@@ -415,9 +394,9 @@ try {
       }),
   );
   check(
-    'アプリ内から削除すると写真も消える',
-    afterRecordDelete.records === 0 && afterRecordDelete.photos === 0,
-    JSON.stringify(afterRecordDelete),
+    '削除するとアプリ内の記録と写真が消える',
+    afterDelete.records === 0 && afterDelete.photos === 0,
+    JSON.stringify(afterDelete),
   );
 
   check('JavaScriptエラーが出ていない', pageErrors.length === 0, pageErrors.join(' | '));
