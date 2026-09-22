@@ -121,6 +121,32 @@ try {
     JSON.stringify(grid),
   );
 
+  console.log('復帰時のカメラ再起動');
+  // OSがバックグラウンドでカメラを閉じた状態を作り、復帰イベントを送る。
+  // 止まった映像が隠れるのは一瞬なので、変化を監視して捉える。
+  const hidFrozenFrame = await page.evaluate(async () => {
+    const video = document.querySelector('video');
+    let sawHidden = false;
+    const observer = new MutationObserver(() => {
+      if (video.style.display === 'none') sawHidden = true;
+    });
+    observer.observe(video, { attributes: true, attributeFilter: ['style'] });
+
+    video.srcObject.getVideoTracks().forEach((track) => track.stop());
+    window.dispatchEvent(new Event('pageshow'));
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    observer.disconnect();
+    return sawHidden;
+  });
+  check('止まった映像をそのまま見せない', hidFrozenFrame);
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video');
+    const track = video?.srcObject?.getVideoTracks?.()[0];
+    return track?.readyState === 'live' && video.videoWidth > 0 && video.style.display !== 'none';
+  }, null, { timeout: 15000 });
+  check('復帰するとカメラが取り直される', true);
+
   console.log('撮影と保存');
   await page.getByRole('button', { name: '撮影' }).click();
   await page.getByLabel('メモ（任意）').waitFor();

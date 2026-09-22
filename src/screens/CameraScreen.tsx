@@ -142,17 +142,19 @@ export default function CameraScreen() {
             muted
             autoPlay
             aria-label="カメラ映像"
-            style={{ display: camera.status === 'ready' ? 'block' : 'none' }}
+            style={{ display: camera.status === 'ready' && !camera.stalled ? 'block' : 'none' }}
           />
 
           {/* Rule-of-thirds guides, only over a live picture. */}
-          {camera.status === 'ready' ? <div className="camera-grid" aria-hidden="true" /> : null}
+          {camera.status === 'ready' && !camera.stalled ? (
+            <div className="camera-grid" aria-hidden="true" />
+          ) : null}
 
           {flash ? <div className="flash" aria-hidden="true" /> : null}
 
-          {camera.status === 'starting' ? (
+          {camera.status === 'starting' || camera.stalled ? (
             <div className="camera-message">
-              <span>カメラを起動しています…</span>
+              <span>{camera.stalled ? 'カメラを再開しています…' : 'カメラを起動しています…'}</span>
             </div>
           ) : null}
 
@@ -191,7 +193,7 @@ export default function CameraScreen() {
             className="shutter"
             onClick={onShutter}
             aria-label="撮影"
-            disabled={camera.status !== 'ready' || busy}
+            disabled={camera.status !== 'ready' || camera.stalled || busy}
           >
             <AppMark size={96} />
           </button>
