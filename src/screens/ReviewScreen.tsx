@@ -13,6 +13,7 @@ import { awaitLocation, formatCoordinates } from '../capture/geolocation';
 import { withExif } from '../capture/exif';
 import { savePhotoToLibrary } from '../platform/photoLibrary';
 import { loadSettings } from '../settings';
+import { ensurePersistenceOnce } from '../platform/storage';
 
 /**
  * 撮影 → 一言 → 保存.
@@ -102,6 +103,9 @@ export default function ReviewScreen() {
       // The device copy is a bonus, never a reason to lose the record: the
       // record is already stored by the time this runs, and a failure here is
       // reported but not thrown.
+      // Now that there is something worth keeping, ask the browser to keep it.
+      void ensurePersistenceOnce();
+
       let toast = '保存しました';
       if (loadSettings().savePhotosToLibrary) {
         const result = await savePhotoToLibrary(blob, record.photoFileName);

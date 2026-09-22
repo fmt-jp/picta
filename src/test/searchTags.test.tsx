@@ -164,4 +164,45 @@ describe('タグ設定', () => {
     expect(toggle).not.toBeChecked();
     expect(JSON.parse(localStorage.getItem('picta.settings.v1')!).savePhotosToLibrary).toBe(false);
   });
+
+  it('端末への保存をOFFにするとバックアップの注意を出す', async () => {
+    const user = userEvent.setup();
+    renderScreen(<SettingsScreen />, '/settings');
+
+    expect(screen.queryByText(/バックアップは「エクスポート」の写真付きZIPだけ/)).toBeNull();
+
+    await user.click(
+      await screen.findByRole('checkbox', { name: '撮影した写真を端末にも保存する' }),
+    );
+
+    expect(
+      screen.getByText(/OFFの間は端末にコピーが作られません/),
+    ).toBeInTheDocument();
+  });
+
+  it('保存データの保護状態を表示し、要求できる', async () => {
+    const persist = vi.fn(async () => true);
+    let persisted = false;
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: {
+        persisted: async () => persisted,
+        persist: async () => {
+          persisted = await persist();
+          return persisted;
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    renderScreen(<SettingsScreen />, '/settings');
+
+    expect(await screen.findByText('保護されていません')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'データを保護する' }));
+
+    expect(await screen.findByText('保護されています')).toBeInTheDocument();
+    expect(persist).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'データを保護する' })).toBeNull();
+    Reflect.deleteProperty(navigator, 'storage');
+  });
 });

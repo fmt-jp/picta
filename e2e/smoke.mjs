@@ -331,6 +331,24 @@ try {
   await page.locator('.record-memo', { hasText: 'また来たい（編集済み）' }).waitFor();
   check('削除後は一覧に戻り、残りの記録が見える', (await page.locator('.record-memo').count()) === 1);
 
+  console.log('設定');
+  await page.goto(`${BASE}/#/settings`, { waitUntil: 'networkidle' });
+  await page.getByText('自動削除からの保護：').waitFor();
+  check(
+    '保存データの保護状態を表示する',
+    /保護されて(います|いません)|アプリ専用領域に保存/.test(
+      await page.locator('strong').first().textContent(),
+    ),
+  );
+  await page.getByRole('checkbox', { name: '撮影した写真を端末にも保存する' }).click();
+  check(
+    '端末保存をOFFにするとバックアップの注意が出る',
+    await page.getByText(/OFFの間は端末にコピーが作られません/).isVisible(),
+  );
+  await page.getByRole('checkbox', { name: '撮影した写真を端末にも保存する' }).click();
+  await page.goto(`${BASE}/#/records`, { waitUntil: 'networkidle' });
+  await page.locator('.record-memo').first().waitFor();
+
   console.log('複数選択して削除');
   await page.getByRole('button', { name: '選択' }).click();
   await page.getByRole('checkbox').first().click();

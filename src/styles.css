@@ -263,6 +263,17 @@ textarea {
   margin-bottom: 14px;
 }
 
+.warn-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #4a4420;
+  background: #2a2614;
+  color: #f3e6bb;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* --- tags ---------------------------------------------------------------- */
 
 .tag-list {

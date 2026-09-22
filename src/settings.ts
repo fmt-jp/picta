@@ -12,11 +12,17 @@ export interface Settings {
   savePhotosToLibrary: boolean;
   /** Attach the place a photo was taken, and write it into the JPEG's EXIF. */
   recordLocation: boolean;
+  /**
+   * Whether persistent storage has already been asked for. Some browsers put
+   * the question to the user, so it is only ever asked once.
+   */
+  persistenceRequested: boolean;
 }
 
 const DEFAULTS: Settings = {
   savePhotosToLibrary: true,
   recordLocation: true,
+  persistenceRequested: false,
 };
 
 export function loadSettings(): Settings {
