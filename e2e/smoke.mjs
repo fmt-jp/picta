@@ -71,6 +71,21 @@ const context = await browser.newContext({
   geolocation: TOKYO,
   acceptDownloads: true,
 });
+// Chromium has no speech recognition, so stub it: the mic button only renders
+// when the platform offers one.
+await context.addInitScript(() => {
+  class FakeRecognition {
+    start() {
+      this.onstart?.();
+    }
+    stop() {
+      this.onend?.();
+    }
+    abort() {}
+  }
+  window.SpeechRecognition = FakeRecognition;
+});
+
 const page = await context.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -112,6 +127,12 @@ try {
   check(
     '撮影後画面のヘッダーにもトリコトが出る',
     await page.locator('.header .camera-wordmark svg').isVisible(),
+  );
+  check('音声入力ボタンがマイクのマークになっている', await page.locator('.mic-button svg').isVisible());
+  await page.getByRole('button', { name: '音声入力を開始' }).click();
+  check(
+    '押すと聞き取り中の表示になる',
+    await page.getByRole('button', { name: '音声入力を停止' }).isVisible(),
   );
   await page.getByRole('button', { name: '破棄' }).click();
   await page.waitForSelector('video', { state: 'visible' });

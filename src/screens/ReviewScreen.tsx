@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import ScreenHeader from '../ui/ScreenHeader';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import TagPicker from '../ui/TagPicker';
+import MicMark from '../ui/MicMark';
 import { formatDateTime } from '../format';
 import { useSpeechInput } from '../capture/useSpeech';
 import { clearPendingCapture, getPendingCapture } from '../capture/pendingCapture';
@@ -181,7 +182,7 @@ export default function ReviewScreen() {
                 aria-label={speech.listening ? '音声入力を停止' : '音声入力を開始'}
                 aria-pressed={speech.listening}
               >
-                🎤
+                <MicMark />
               </button>
             ) : null}
           </div>

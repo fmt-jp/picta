@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Record } from '../types';
 import ScreenHeader from '../ui/ScreenHeader';
 import TagPicker from '../ui/TagPicker';
+import MicMark from '../ui/MicMark';
 import { useSpeechInput } from '../capture/useSpeech';
 import { getRecord, updateRecord } from '../db/records';
 import { usePhotoUrl } from '../db/usePhotoUrl';
@@ -122,7 +123,7 @@ export default function RecordEditScreen() {
                 aria-label={speech.listening ? '音声入力を停止' : '音声入力を開始'}
                 aria-pressed={speech.listening}
               >
-                🎤
+                <MicMark />
               </button>
             ) : null}
           </div>

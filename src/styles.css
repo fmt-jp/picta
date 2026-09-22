@@ -624,12 +624,16 @@ textarea {
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--bg-raised);
-  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mic-button.recording {
   background: var(--danger);
   border-color: var(--danger);
+  /* Gold on red reads poorly; the whole mic goes white while listening. */
+  --mic-stand: #fff;
   animation: pulse 1.4s ease-in-out infinite;
 }
 
