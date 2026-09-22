@@ -92,6 +92,7 @@ try {
   await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
   check('カメラがすぐに表示される', await page.getByRole('button', { name: '撮影' }).isEnabled());
   check('上部にトリコトのアイコンと文字が出る', await page.locator('.camera-wordmark svg').isVisible());
+  check('シャッターがアプリのマークになっている', await page.locator('.shutter svg').isVisible());
   const frame = await page.locator('.camera-frame').boundingBox();
   check(
     'ビューファインダーが1:1',

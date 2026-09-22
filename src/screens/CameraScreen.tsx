@@ -192,7 +192,9 @@ export default function CameraScreen() {
             onClick={onShutter}
             aria-label="撮影"
             disabled={camera.status !== 'ready' || busy}
-          />
+          >
+            <AppMark size={96} />
+          </button>
         ) : null}
       </div>
 
