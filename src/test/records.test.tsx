@@ -7,6 +7,7 @@ import RecordsScreen from '../screens/RecordsScreen';
 import RecordDetailScreen from '../screens/RecordDetailScreen';
 import RecordEditScreen from '../screens/RecordEditScreen';
 import { createRecord, getRecord, listRecords } from '../db/records';
+import { loadPhotoBlob } from '../db/photoStore';
 
 const T = new Date(2026, 8, 21, 12, 31, 0).getTime();
 
@@ -174,5 +175,113 @@ describe('記録の編集', () => {
     await user.click(screen.getByRole('button', { name: '保存' }));
 
     await waitFor(async () => expect((await getRecord(record.id))?.tags).toContain('再訪'));
+  });
+});
+
+describe('複数選択して削除', () => {
+  async function enterSelection(user: ReturnType<typeof userEvent.setup>) {
+    renderAt('/records');
+    await screen.findByText('この店また来たい');
+    await user.click(screen.getByRole('button', { name: '選択' }));
+  }
+
+  it('選択モードに入ると各記録がチェックできる', async () => {
+    const user = userEvent.setup();
+    await seed();
+    await enterSelection(user);
+
+    const boxes = screen.getAllByRole('checkbox');
+    expect(boxes).toHaveLength(3);
+    expect(boxes[0]).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(boxes[0]);
+    expect(boxes[0]).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('heading', { name: '1件を選択' })).toBeInTheDocument();
+
+    await user.click(boxes[0]);
+    expect(boxes[0]).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('未選択では削除ボタンを押せない', async () => {
+    const user = userEvent.setup();
+    await seed();
+    await enterSelection(user);
+    expect(screen.getByRole('button', { name: '削除する記録を選んでください' })).toBeDisabled();
+  });
+
+  it('削除前に確認画面で2つの選択肢を出す', async () => {
+    const user = userEvent.setup();
+    await seed();
+    await enterSelection(user);
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getAllByRole('checkbox')[1]);
+    await user.click(screen.getByRole('button', { name: '2件を削除' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: '2件をどう削除しますか？' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('端末のフォトライブラリに保存した写真は削除されません。'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /メモだけ削除/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /メモと写真を削除/ })).toBeInTheDocument();
+  });
+
+  it('「メモだけ削除」は写真とタグを残してメモだけ消す', async () => {
+    const user = userEvent.setup();
+    const newest = await seed();
+    await enterSelection(user);
+
+    await user.click(screen.getAllByRole('checkbox')[0]); // この店また来たい
+    await user.click(screen.getByRole('button', { name: '1件を削除' }));
+    await user.click(screen.getByRole('button', { name: /メモだけ削除/ }));
+
+    await waitFor(async () => expect((await getRecord(newest.id))?.memo).toBe(''));
+    const kept = await getRecord(newest.id);
+    expect(kept?.tags).toEqual(['旅行', 'グルメ']);
+    expect(await loadPhotoBlob(newest.photoId)).not.toBeNull();
+    expect(await listRecords()).toHaveLength(3);
+  });
+
+  it('「メモと写真を削除」は記録ごと消す', async () => {
+    const user = userEvent.setup();
+    const newest = await seed();
+    await enterSelection(user);
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getAllByRole('checkbox')[1]);
+    await user.click(screen.getByRole('button', { name: '2件を削除' }));
+    await user.click(screen.getByRole('button', { name: /メモと写真を削除/ }));
+
+    await waitFor(async () => expect(await listRecords()).toHaveLength(1));
+    expect(await getRecord(newest.id)).toBeUndefined();
+    expect(await loadPhotoBlob(newest.photoId)).toBeNull();
+    expect((await listRecords())[0].memo).toBe('ここから見ると綺麗');
+  });
+
+  it('確認をキャンセルすると何も消えない', async () => {
+    const user = userEvent.setup();
+    await seed();
+    await enterSelection(user);
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getByRole('button', { name: '1件を削除' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'キャンセル' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await listRecords()).toHaveLength(3);
+  });
+
+  it('選択モードを抜けると通常の一覧に戻る', async () => {
+    const user = userEvent.setup();
+    await seed();
+    await enterSelection(user);
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getByRole('button', { name: 'やめる' }));
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('heading', { name: '過去の記録' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link').length).toBeGreaterThan(0);
   });
 });

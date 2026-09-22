@@ -300,6 +300,61 @@ try {
   await page.locator('.record-memo', { hasText: 'また来たい（編集済み）' }).waitFor();
   check('削除後は一覧に戻り、残りの記録が見える', (await page.locator('.record-memo').count()) === 1);
 
+  console.log('複数選択して削除');
+  await page.getByRole('button', { name: '選択' }).click();
+  await page.getByRole('checkbox').first().click();
+  await page.getByRole('button', { name: '1件を削除' }).click();
+  await page.getByRole('dialog').waitFor();
+  check(
+    '確認画面に2つの選択肢が出る',
+    (await page.getByRole('button', { name: /メモだけ削除/ }).isVisible()) &&
+      (await page.getByRole('button', { name: /メモと写真を削除/ }).isVisible()),
+  );
+  await page.getByRole('button', { name: /メモだけ削除/ }).click();
+  await page.getByText('1件のメモを削除しました').waitFor();
+  const afterMemoDelete = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const rows = request.result.transaction('records').objectStore('records').getAll();
+          rows.onsuccess = () =>
+            resolve(rows.result.map((r) => ({ memo: r.memo, tags: r.tags.length })));
+        };
+      }),
+  );
+  check(
+    'メモだけ削除では記録とタグが残る',
+    afterMemoDelete.length === 1 && afterMemoDelete[0].memo === '' && afterMemoDelete[0].tags > 0,
+    JSON.stringify(afterMemoDelete),
+  );
+
+  await page.getByRole('button', { name: '選択' }).click();
+  await page.getByRole('checkbox').first().click();
+  await page.getByRole('button', { name: '1件を削除' }).click();
+  await page.getByRole('button', { name: /メモと写真を削除/ }).click();
+  await page.getByText('1件の記録を削除しました').waitFor();
+  const afterRecordDelete = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const tx = request.result.transaction(['records', 'photos']);
+          const records = tx.objectStore('records').getAll();
+          const photos = tx.objectStore('photos').getAll();
+          records.onsuccess = () => {
+            photos.onsuccess = () =>
+              resolve({ records: records.result.length, photos: photos.result.length });
+          };
+        };
+      }),
+  );
+  check(
+    'メモと写真を削除すると写真も消える',
+    afterRecordDelete.records === 0 && afterRecordDelete.photos === 0,
+    JSON.stringify(afterRecordDelete),
+  );
+
   check('JavaScriptエラーが出ていない', pageErrors.length === 0, pageErrors.join(' | '));
 } catch (err) {
   failures += 1;

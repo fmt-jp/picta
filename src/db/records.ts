@@ -142,6 +142,37 @@ export async function deleteRecord(id: string): Promise<void> {
   await deletePhoto(record.photoId);
 }
 
+/**
+ * Bulk delete from the list screen. The copies in the device photo library are
+ * left alone, exactly as a single delete leaves them (spec §14).
+ * Returns how many records were actually removed.
+ */
+export async function deleteRecords(ids: string[]): Promise<number> {
+  let removed = 0;
+  for (const id of ids) {
+    const existed = await getRecord(id);
+    if (!existed) continue;
+    await deleteRecord(id);
+    removed += 1;
+  }
+  return removed;
+}
+
+/**
+ * Clears the memo on several records, keeping the photo, the tags and the
+ * capture time. The photos are re-stamped, so their caption goes too.
+ */
+export async function clearMemos(ids: string[]): Promise<number> {
+  let cleared = 0;
+  for (const id of ids) {
+    const record = await getRecord(id);
+    if (!record || !record.memo) continue;
+    await updateRecord(id, { memo: '' });
+    cleared += 1;
+  }
+  return cleared;
+}
+
 /** NFKC + lower-case so 全角/半角 and letter case do not split a match. */
 export function foldForSearch(text: string): string {
   return text.normalize('NFKC').toLowerCase();

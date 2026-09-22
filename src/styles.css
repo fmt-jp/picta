@@ -882,3 +882,78 @@ textarea {
   text-decoration: none;
   border-bottom: 1px solid rgba(255, 214, 102, 0.4);
 }
+
+/* --- multi-select on the record list ------------------------------------- */
+
+.record-item.selected {
+  background: var(--bg-raised);
+  border-radius: var(--radius);
+}
+
+.record-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.record-check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+button.record-item {
+  width: 100%;
+  font: inherit;
+  padding: 8px;
+}
+
+/* --- choice dialog ------------------------------------------------------- */
+
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  text-align: left;
+}
+
+.choice.danger {
+  border-color: #4a2626;
+}
+
+.choice-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.choice.danger .choice-label {
+  color: var(--danger);
+}
+
+.choice-description {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
