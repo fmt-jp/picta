@@ -351,6 +351,7 @@ textarea {
 }
 
 .menu-item {
+  --menu-icon-bg: var(--bg-raised);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -367,14 +368,36 @@ textarea {
 }
 
 .menu-item[aria-current='page'] {
+  --menu-icon-bg: var(--bg-input);
   background: var(--bg-input);
   font-weight: 600;
 }
 
-.menu-item .emoji {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
+.menu-icon {
+  display: block;
+  flex: none;
+}
+
+/* line work in the text colour, one gold accent per icon */
+.menu-icon .s {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.menu-icon .af {
+  fill: var(--accent);
+  stroke: none;
+}
+
+.menu-icon .as {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .menu-footer {

@@ -29,4 +29,23 @@ describe('アプリシェル', () => {
     await user.click(screen.getByRole('button', { name: 'メニューを閉じる' }));
     expect(screen.queryByRole('navigation', { name: 'メインメニュー' })).toBeNull();
   });
+
+  it('メニュー項目には線画アイコンが付く', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'メニューを開く' }));
+    const menu = screen.getByRole('navigation', { name: 'メインメニュー' });
+
+    const links = within(menu).getAllByRole('link');
+    expect(links).toHaveLength(6);
+    for (const link of links) {
+      const icon = link.querySelector('svg.menu-icon');
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+      // 線画＋金のアクセントが1点ずつ入っている
+      expect(icon!.querySelectorAll('.s').length).toBeGreaterThan(0);
+      expect(icon!.querySelectorAll('.af, .as').length).toBeGreaterThan(0);
+    }
+  });
 });

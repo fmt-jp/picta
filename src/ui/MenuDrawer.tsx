@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect } from 'react';
+import MenuIcon, { type MenuIconName } from './MenuIcon';
 
-const ITEMS = [
-  { to: '/', emoji: '📷', label: '撮影', end: true },
-  { to: '/records', emoji: '📚', label: '過去の記録', end: false },
-  { to: '/search', emoji: '🔍', label: '検索', end: false },
-  { to: '/tags', emoji: '🏷', label: 'タグ', end: false },
-  { to: '/export', emoji: '📤', label: 'エクスポート', end: false },
-  { to: '/settings', emoji: '⚙', label: '設定', end: false },
+const ITEMS: { to: string; icon: MenuIconName; label: string; end: boolean }[] = [
+  { to: '/', icon: 'camera', label: '撮影', end: true },
+  { to: '/records', icon: 'records', label: '過去の記録', end: false },
+  { to: '/search', icon: 'search', label: '検索', end: false },
+  { to: '/tags', icon: 'tags', label: 'タグ', end: false },
+  { to: '/export', icon: 'export', label: 'エクスポート', end: false },
+  { to: '/settings', icon: 'settings', label: '設定', end: false },
 ];
 
 interface Props {
@@ -40,9 +41,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
             className="menu-item"
             onClick={onClose}
           >
-            <span className="emoji" aria-hidden="true">
-              {item.emoji}
-            </span>
+            <MenuIcon name={item.icon} />
             {item.label}
           </NavLink>
         ))}
