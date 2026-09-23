@@ -6,8 +6,11 @@ export interface GeoPoint {
   longitude: number;
   /** Metres, for device fixes only. */
   accuracy?: number;
-  /** 'device' = the Geolocation API at shutter time, 'exif' = read from a file. */
-  source: 'device' | 'exif';
+  /**
+   * 'device' = the Geolocation API at shutter time, 'exif' = read from a file,
+   * 'import' = restored from a backup.
+   */
+  source: 'device' | 'exif' | 'import';
 }
 
 /**

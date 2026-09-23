@@ -48,6 +48,8 @@ await new Promise((resolve) => server.listen(PORT, resolve));
 const BASE = `http://localhost:${PORT}`;
 
 let failures = 0;
+/** Kept from the export step so the import step can read it back. */
+let savedZipPath = null;
 function check(label, condition, detail = '') {
   if (condition) {
     console.log(`  ✓ ${label}`);
@@ -281,6 +283,7 @@ try {
     page.getByRole('button', { name: 'ZIPを書き出す' }).click(),
   ]);
   const zipPath = await zip.path();
+  savedZipPath = zipPath;
   const entries = unzipSync(new Uint8Array(await readFile(zipPath)));
   const names = Object.keys(entries).sort();
   check('ZIPにmanifest/CSV/写真が入る', names.length === 4 && names[0] === 'manifest.json', names.join(', '));
@@ -398,6 +401,74 @@ try {
     afterDelete.records === 0 && afterDelete.photos === 0,
     JSON.stringify(afterDelete),
   );
+
+  console.log('インポート（復元）');
+  await page.goto(`${BASE}/#/export`, { waitUntil: 'networkidle' });
+  await page.getByText('記録 0件').waitFor();
+  await page.setInputFiles('input[aria-label="読み込むZIPファイル"]', savedZipPath);
+  await page.getByRole('dialog').waitFor();
+  check(
+    '読み込む前に内容を確認できる',
+    (await page.getByRole('heading', { name: /件を読み込みますか？/ }).isVisible()) &&
+      (await page.getByRole('dialog').innerText()).includes('torikoto-export'),
+  );
+  await page.getByRole('dialog').getByRole('button', { name: '読み込む', exact: true }).click();
+  await page.getByText(/件を読み込みました/).waitFor();
+
+  const restored = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        // The store name intentionally keeps the app's former name.
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const tx = request.result.transaction(['records', 'photos']);
+          const records = tx.objectStore('records').getAll();
+          const photos = tx.objectStore('photos').getAll();
+          records.onsuccess = () => {
+            photos.onsuccess = () =>
+              resolve({
+                memos: records.result
+                  .sort((a, b) => b.capturedAt - a.capturedAt)
+                  .map((r) => r.memo),
+                tags: records.result.map((r) => r.tags.length),
+                location: records.result.some((r) => r.location),
+                photos: photos.result.length,
+                bytes: photos.result.map((p) => p.bytes.byteLength),
+              });
+          };
+        };
+      }),
+  );
+  check(
+    'ZIPから記録と写真が復元される',
+    restored.memos.length === 2 &&
+      restored.photos === 2 &&
+      restored.bytes.every((n) => n > 1000),
+    JSON.stringify({ ...restored, bytes: restored.bytes.length }),
+  );
+  check(
+    'メモ・タグ・位置情報も戻る',
+    restored.memos.includes('また来たい（編集済み）') &&
+      restored.tags.some((n) => n > 0) &&
+      restored.location === true,
+    JSON.stringify(restored.memos),
+  );
+
+  // もう一度読み込んでも増えない
+  await page.setInputFiles('input[aria-label="読み込むZIPファイル"]', savedZipPath);
+  await page.getByRole('dialog').getByRole('button', { name: '読み込む', exact: true }).click();
+  await page.getByText(/既存のため飛ばしました/).waitFor();
+  const afterSecond = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open('picta');
+        request.onsuccess = () => {
+          const rows = request.result.transaction('records').objectStore('records').getAll();
+          rows.onsuccess = () => resolve(rows.result.length);
+        };
+      }),
+  );
+  check('同じZIPを二度読んでも増えない', afterSecond === 2, String(afterSecond));
 
   check('JavaScriptエラーが出ていない', pageErrors.length === 0, pageErrors.join(' | '));
 } catch (err) {

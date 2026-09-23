@@ -244,6 +244,37 @@ export async function readExif(blob: Blob, headBytes = 256 * 1024): Promise<Exif
   }
 }
 
+/**
+ * Width and height straight out of the JPEG's frame header (SOFn), without
+ * decoding the image. Returns null for anything that is not a JPEG or has no
+ * frame header.
+ */
+export function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 4 <= bytes.length) {
+    if (bytes[offset] !== 0xff) return null;
+    const marker = bytes[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9) return null;
+    const size = (bytes[offset + 2] << 8) | bytes[offset + 3];
+    if (size < 2) return null;
+
+    // SOF0-SOF3, SOF5-SOF7, SOF9-SOF11, SOF13-SOF15 all start with
+    // precision, height, width. The others in that range are not frames.
+    const isFrame =
+      marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    if (isFrame) {
+      if (offset + 9 > bytes.length) return null;
+      const height = (bytes[offset + 5] << 8) | bytes[offset + 6];
+      const width = (bytes[offset + 7] << 8) | bytes[offset + 8];
+      return width && height ? { width, height } : null;
+    }
+    if (marker === 0xda) return null; // image data starts; no frame header found
+    offset += 2 + size;
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ writing */
 
 interface Entry {
