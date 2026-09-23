@@ -195,7 +195,7 @@ export default function CameraScreen() {
             aria-label="撮影"
             disabled={camera.status !== 'ready' || camera.stalled || busy}
           >
-            <AppMark size={96} />
+            <AppMark size={115} />
           </button>
         ) : null}
       </div>
